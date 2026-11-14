@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#111827" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Scam Shield</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <div id="light" class="light green" aria-live="polite"><span id="level">Safe</span></div>
+      <div class="meter"><div id="meter-fill"></div></div>
+      <p id="reason"></p>
+      <div id="tactics" class="chips"></div>
+
+      <section id="verify" class="card" hidden>
+        <p class="ask">Ask the caller:</p>
+        <p id="verify-q" class="question"></p>
+        <div class="row">
+          <button id="verify-yes" class="ok">They got it right</button>
+          <button id="verify-no" class="bad">Wrong answer</button>
+        </div>
+      </section>
+
+      <p id="alerted" class="alerted" hidden>Your family has been texted.</p>
+
+      <div class="row">
+        <button id="start" class="primary">Start listening</button>
+        <button id="stop" hidden>Stop</button>
+      </div>
+      <label class="demo"><input type="checkbox" id="demo" /> Demo: play a test script instead of the mic</label>
+      <select id="demo-script" hidden></select>
+
+      <ol id="transcript"></ol>
+      <p id="status" class="status"></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

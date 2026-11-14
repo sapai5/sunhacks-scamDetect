@@ -1,0 +1,14 @@
+{
+  "name": "scam-shield",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "test": "npm test -w backend",
+    "synth": "npm run synth -w backend",
+    "dev": "npm run dev -w frontend",
+    "scripts:run": "npm run scripts:run -w backend"
+  }
+}
