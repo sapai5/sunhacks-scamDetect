@@ -16,7 +16,7 @@
     "@aws-sdk/client-transcribe-streaming": "^3.1169.0",
     "aws-cdk-lib": "^2.200.0",
     "constructs": "^10.4.2",
-    "twilio": "^6.3.0",
+    "twilio": "^5.13.1",
     "ws": "^8.23.0"
   },
   "devDependencies": {
