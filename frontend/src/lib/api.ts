@@ -2,10 +2,12 @@
 import type { AgentRequest, AgentResponse, AnalyzeRequest, CallEventRequest, CallEventResponse, RiskState } from '../../../contracts/index.js';
 import { mockAgent } from './mockAgent';
 import { mockAnalyze } from './mockAnalyze';
+import type { Settings } from './settings';
 
 const ANALYZE_URL = import.meta.env.VITE_ANALYZE_URL;
 const AGENT_URL = import.meta.env.VITE_AGENT_URL;
 const EVENTS_URL = import.meta.env.VITE_EVENTS_URL;
+const SETTINGS_URL = import.meta.env.VITE_SETTINGS_URL;
 const FORCE_MOCK = new URLSearchParams(location.search).has('mock');
 
 /** True when no Analyze URL is configured, or the page was opened with ?mock. */
@@ -65,5 +67,30 @@ export async function postEvent(req: CallEventRequest): Promise<CallEventRespons
     return await post<CallEventResponse>(EVENTS_URL!, req, 'events', 5_000);
   } catch {
     return { notified: false };
+  }
+}
+
+/**
+ * PUT the onboarding settings to the Settings API, so the agent asks this family question.
+ * Never throws: onboarding works offline, and the backend keeps its last values (or cdk.json's).
+ */
+export async function syncSettings(s: Settings): Promise<boolean> {
+  if (!SETTINGS_URL || FORCE_MOCK) return false;
+  try {
+    const res = await fetch(SETTINGS_URL, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        elderId: 'e-01',
+        family: s.family,
+        ...(s.question.trim() && { verificationQuestion: s.question }),
+        ...(s.answer.trim() && { verificationAnswer: s.answer }),
+      }),
+    });
+    if (!res.ok) console.warn(`settings: HTTP ${res.status} ${await res.text()}`);
+    return res.ok;
+  } catch (err) {
+    console.warn('settings: not saved to the backend', err);
+    return false;
   }
 }

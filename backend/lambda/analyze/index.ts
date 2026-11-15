@@ -1,17 +1,9 @@
-import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
-import type { AnalyzeRequest, RiskState } from '../../../contracts/index.js';
-import { askClaude } from '../shared/bedrock.js';
+import type { AnalyzeRequest } from '../../../contracts/index.js';
+import { loadElder } from '../shared/db.js';
 import { json, readBody } from '../shared/http.js';
-import { buildUserMessage, SYSTEM_PROMPT } from './prompt.js';
-import { BadRequest, decide, parseRequest, parseVerdict, recentWindow, type ModelVerdict } from './rules.js';
-
-const sns = new SNSClient({});
-
-const MODEL_ID = process.env.MODEL_ID!;
-const ELDER_NAME = process.env.ELDER_NAME ?? 'the elder';
-const VERIFICATION_QUESTION = process.env.VERIFICATION_QUESTION ?? '';
-const FAMILY_TOPIC_ARN = process.env.FAMILY_TOPIC_ARN!;
+import { BadRequest, parseRequest } from './rules.js';
+import { alertFamily, score } from './score.js';
 
 export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
   const started = Date.now();
@@ -22,25 +14,21 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
     return json(400, { error: err instanceof BadRequest ? err.message : 'bad request' });
   }
 
-  const window = recentWindow(req.utterances);
-  const empty: ModelVerdict = { risk: 0, tactics: [], reason: '', claimedRelative: false, elderState: 'none' };
-  if (window.length === 0) return json(200, state(req, empty));
-
-  let verdict: ModelVerdict;
+  const elder = await loadElder(req.elderId);
+  let scored;
   try {
-    verdict = parseVerdict(await askClaude(MODEL_ID, SYSTEM_PROMPT, buildUserMessage(ELDER_NAME, window), 200));
+    scored = await score(req, elder);
   } catch (err) {
     // Keep the last level on failure; the app shows it while waiting.
     console.error('bedrock failed', err);
     return json(502, { error: 'scoring failed', level: req.prevLevel });
   }
-  const bedrockMs = Date.now() - started;
 
-  const result = state(req, verdict);
-  if (decide(verdict, req).shouldAlert) {
+  const { state, shouldAlert, bedrockMs } = scored;
+  if (shouldAlert) {
     try {
-      await alertFamily(req, result);
-      result.familyAlerted = true;
+      await alertFamily(elder, req, state);
+      state.familyAlerted = true;
     } catch (err) {
       console.error('sns publish failed', err);
     }
@@ -49,51 +37,14 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   console.log(
     JSON.stringify({
       callId: req.callId,
-      level: result.level,
-      risk: result.risk,
-      tactics: result.tactics,
-      elderState: result.elderState,
-      action: result.action,
+      level: state.level,
+      risk: state.risk,
+      tactics: state.tactics,
+      elderState: state.elderState,
+      action: state.action,
       bedrockMs,
       totalMs: Date.now() - started,
     }),
   );
-  return json(200, result);
+  return json(200, state);
 };
-
-function state(req: AnalyzeRequest, v: ModelVerdict): RiskState {
-  const d = decide(v, req);
-  return {
-    callId: req.callId,
-    risk: d.risk,
-    level: d.level,
-    tactics: d.tactics,
-    reason: v.reason,
-    action: d.action,
-    updatedAt: Date.now(),
-    calmStreak: d.calmStreak,
-    claimedRelative: v.claimedRelative,
-    elderState: v.elderState,
-    verificationQuestion: d.action === 'ask_verification' ? VERIFICATION_QUESTION : undefined,
-    familyAlerted: false,
-  };
-}
-
-async function alertFamily(req: AnalyzeRequest, s: RiskState): Promise<void> {
-  // Only the last few lines go in the alert (privacy section of the design doc).
-  const lastLines = recentWindow(req.utterances)
-    .slice(-3)
-    .map((u) => `"${u.text.slice(0, 120)}"`)
-    .join(' ');
-  const message =
-    `Scam Shield: ${ELDER_NAME} is on a likely scam call and is starting to go along with it. ` +
-    `Signs: ${s.tactics.join(', ').replaceAll('_', ' ')}. ${s.reason} ` +
-    `Last words: ${lastLines} Please call them now.`;
-  await sns.send(
-    new PublishCommand({
-      TopicArn: FAMILY_TOPIC_ARN,
-      Subject: `Scam alert: ${ELDER_NAME} may be on a scam call`,
-      Message: message.slice(0, 1400),
-    }),
-  );
-}

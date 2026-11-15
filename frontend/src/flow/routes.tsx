@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { CallEventSheet } from '../components/CallEvents';
 import { unlockAudio, useCallAlerts, vibrate } from '../lib/alerts';
-import { MIC_AVAILABLE } from '../lib/api';
+import { MIC_AVAILABLE, syncSettings } from '../lib/api';
 import { useCallContext } from '../lib/CallContext';
 import type { ElderView } from '../lib/callState';
 import { useThemeColor, useVisible, useWakeLock } from '../lib/pwa';
@@ -78,7 +78,7 @@ export function O3Route() {
         } catch {
           /* denied or no mic: demo scripts still work */
         }
-        saveSettings({ onboarded: true });
+        void syncSettings(saveSettings({ onboarded: true }));
         nav(FLOW.idle);
       }}
     />

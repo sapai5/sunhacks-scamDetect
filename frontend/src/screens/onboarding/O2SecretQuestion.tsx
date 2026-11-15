@@ -1,5 +1,5 @@
 // O2 Secret question. Figma node 15:110.
-// The live backend asks verificationQuestion from backend/cdk.json (no settings endpoint yet).
+// Saved to the backend's Settings API when onboarding finishes; the takeover agent asks this question.
 import { useState } from 'react';
 import { Field } from '../../components/Risk';
 

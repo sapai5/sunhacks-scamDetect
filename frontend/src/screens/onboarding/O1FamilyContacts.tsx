@@ -1,5 +1,5 @@
 // O1 Family contacts. Figma node 15:98.
-// Stored in this browser only; the real SMS still goes to familyPhone in backend/cdk.json.
+// Saved to the backend when onboarding finishes; alerts still go to the SNS topic's subscribers (backend/cdk.json).
 import { useState } from 'react';
 import { Field } from '../../components/Risk';
 import { SAMPLE_FAMILY } from '../../lib/fixtures';

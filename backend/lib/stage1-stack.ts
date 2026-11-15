@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as amplify from 'aws-cdk-lib/aws-amplify';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -11,6 +12,22 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+export const fnDefaults = {
+  runtime: lambda.Runtime.NODEJS_22_X,
+  architecture: lambda.Architecture.ARM_64,
+  bundling: { minify: true, sourceMap: true },
+};
+
+export const invokeClaude = (stack: cdk.Stack) =>
+  new iam.PolicyStatement({
+    actions: ['bedrock:InvokeModel'],
+    resources: [
+      // Cross-region inference profiles (us.*) route to the model in several regions.
+      'arn:aws:bedrock:*::foundation-model/anthropic.claude-*',
+      `arn:aws:bedrock:${stack.region}:${stack.account}:inference-profile/*anthropic.claude-*`,
+    ],
+  });
 
 export interface Stage1StackProps extends cdk.StackProps {
   elderName: string;
@@ -25,6 +42,10 @@ export interface Stage1StackProps extends cdk.StackProps {
   familyPhone?: string;
   /** Fallback channel if SMS isn't approved in time. */
   familyEmail?: string;
+  /** Web origins allowed besides the Amplify app, e.g. http://localhost:5173. */
+  webOrigins: string[];
+  /** Elders table (Data stack). Analyze and Agent read settings from it; referenced by name to avoid a stack cycle. */
+  eldersTableName: string;
 }
 
 /**
@@ -33,25 +54,15 @@ export interface Stage1StackProps extends cdk.StackProps {
  * Services: Transcribe, Lambda, Bedrock, SNS/SMS, Amplify Hosting.
  */
 export class Stage1Stack extends cdk.Stack {
+  readonly familyTopic: sns.Topic;
+  /** The Amplify app plus props.webOrigins: the only origins the function URLs and push socket accept. */
+  readonly webOrigins: string[];
+
   constructor(scope: Construct, id: string, props: Stage1StackProps) {
     super(scope, id, props);
 
-    const cors: lambda.FunctionUrlCorsOptions = {
-      // Hackathon: any origin. Lock this to the Amplify domain once it's known.
-      allowedOrigins: ['*'],
-      allowedMethods: [lambda.HttpMethod.POST],
-      allowedHeaders: ['content-type'],
-      maxAge: cdk.Duration.minutes(10),
-    };
-
-    const fnDefaults = {
-      runtime: lambda.Runtime.NODEJS_22_X,
-      architecture: lambda.Architecture.ARM_64,
-      bundling: { minify: true, sourceMap: true },
-    };
-
     // --- Family alert: SNS topic, texts (and optionally emails) the family on red.
-    const familyTopic = new sns.Topic(this, 'FamilyAlerts', { displayName: 'Scam Shield' });
+    const familyTopic = (this.familyTopic = new sns.Topic(this, 'FamilyAlerts', { displayName: 'Scam Shield' }));
     if (props.familyPhone) familyTopic.addSubscription(new subs.SmsSubscription(props.familyPhone));
     if (props.familyEmail) familyTopic.addSubscription(new subs.EmailSubscription(props.familyEmail));
 
@@ -121,17 +132,13 @@ export class Stage1Stack extends cdk.Stack {
       }),
     });
 
-    const invokeClaude = new iam.PolicyStatement({
-      actions: ['bedrock:InvokeModel'],
-      resources: [
-        // Cross-region inference profiles (us.*) route to the model in several regions.
-        'arn:aws:bedrock:*::foundation-model/anthropic.claude-*',
-        `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/*anthropic.claude-*`,
-      ],
-    });
+    // Settings come from the Elders table; the env values above are the fallback.
+    const elders = dynamodb.Table.fromTableName(this, 'Elders', props.eldersTableName);
     for (const fn of [analyzeFn, agentFn]) {
-      fn.addToRolePolicy(invokeClaude);
+      fn.addToRolePolicy(invokeClaude(this));
       familyTopic.grantPublish(fn);
+      elders.grant(fn, 'dynamodb:GetItem');
+      fn.addEnvironment('ELDERS_TABLE', elders.tableName);
     }
 
     // --- Events Lambda: call events from the app (hang-up, off/on speaker, caller asking to go
@@ -148,11 +155,6 @@ export class Stage1Stack extends cdk.Stack {
       }),
     });
     familyTopic.grantPublish(eventsFn);
-
-    const credentialsUrl = credentialsFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
-    const analyzeUrl = analyzeFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
-    const agentUrl = agentFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
-    const eventsUrl = eventsFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
 
     // --- Amplify Hosting for the PWA (manual zip deploy, no Git connection).
     const webApp = new amplify.CfnApp(this, 'WebApp', {
@@ -172,6 +174,20 @@ export class Stage1Stack extends cdk.Stack {
       branchName: 'main',
       stage: 'PRODUCTION',
     });
+    const webUrl = `https://${branch.branchName}.${webApp.attrDefaultDomain}`;
+
+    // Browsers only: CORS doesn't stop curl or a server. Cognito comes in Stage 3.
+    this.webOrigins = [webUrl, ...props.webOrigins];
+    const cors: lambda.FunctionUrlCorsOptions = {
+      allowedOrigins: this.webOrigins,
+      allowedMethods: [lambda.HttpMethod.POST],
+      allowedHeaders: ['content-type'],
+      maxAge: cdk.Duration.minutes(10),
+    };
+    const credentialsUrl = credentialsFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
+    const analyzeUrl = analyzeFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
+    const agentUrl = agentFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
+    const eventsUrl = eventsFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
 
     new cdk.CfnOutput(this, 'Region', { value: this.region });
     new cdk.CfnOutput(this, 'CredentialsUrl', { value: credentialsUrl.url });
@@ -180,6 +196,6 @@ export class Stage1Stack extends cdk.Stack {
     new cdk.CfnOutput(this, 'EventsUrl', { value: eventsUrl.url });
     new cdk.CfnOutput(this, 'FamilyTopicArn', { value: familyTopic.topicArn });
     new cdk.CfnOutput(this, 'AmplifyAppId', { value: webApp.attrAppId });
-    new cdk.CfnOutput(this, 'WebUrl', { value: `https://${branch.branchName}.${webApp.attrDefaultDomain}` });
+    new cdk.CfnOutput(this, 'WebUrl', { value: webUrl });
   }
 }
