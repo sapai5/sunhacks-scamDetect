@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  asksVerification,
   callerGaveAnswer,
+  GATHER_LINES,
   GOODBYE_LINE,
   HANDBACK_LINE,
   MAX_AGENT_TURNS,
@@ -68,6 +70,37 @@ describe('parseAgentReply', () => {
   it('ignores the answer if it was said before the takeover, or inside another word', () => {
     expect(callerGaveAnswer([{ ...u('caller', 0), text: 'biscuit' }, u('agent', 1)], 'Biscuit')).toBe(false);
     expect(callerGaveAnswer([u('agent', 0), { ...u('caller', 1), text: 'biscuits for breakfast' }], 'Biscuit')).toBe(false);
+  });
+
+  const Q = 'What did we name the family dog when you were little?';
+
+  it('recognizes the verification question, even reworded, and nothing else', () => {
+    expect(asksVerification('Quick one: what did we name the family dog when you were little?', Q)).toBe(true);
+    expect(asksVerification('What was the name of the family dog?', Q)).toBe(true);
+    expect(asksVerification("What's a good number to call you back on?", Q)).toBe(false);
+    expect(asksVerification('We named the dog after grandpa.', Q)).toBe(false); // not a question
+  });
+
+  it('asks the security question only once, then gathers details instead', () => {
+    const history = [
+      { ...u('agent', 0), text: `Hi, this is Mike. ${Q}` },
+      { ...u('caller', 1), text: "I don't remember." },
+    ];
+    const r = parseAgentReply(reply({ say: `Come on, ${Q}`, status: 'active' }), history, 'Biscuit', Q);
+    expect(asksVerification(r.say, Q)).toBe(false);
+    expect(GATHER_LINES).toContain(r.say);
+    expect(r.status).toBe('active');
+  });
+
+  it('lets the first security question through', () => {
+    const r = parseAgentReply(reply({ say: `Hi, this is Mike. ${Q}`, status: 'active' }), [u('caller', 0)], 'Biscuit', Q);
+    expect(r.say).toContain('family dog');
+  });
+
+  it('keeps the gathered details in the summary for the family', () => {
+    const long = 'Caller claimed to be Tommy, at the county jail downtown; lawyer Mr. Davis 602-555-0199; wanted two $500 Target gift cards read over the phone. '.repeat(3);
+    const r = parseAgentReply(reply({ say: 'Goodbye.', status: 'scam_confirmed', summary: long }), [], 'Biscuit', Q);
+    expect(r.summary.length).toBeGreaterThan(300);
   });
 
   it('keeps a final decision on the last allowed turn', () => {

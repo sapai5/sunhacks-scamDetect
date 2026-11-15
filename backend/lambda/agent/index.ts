@@ -37,7 +37,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   try {
     // Last 60 lines is plenty: the scam lead-up plus the agent conversation.
     const recent = [...utterances].sort((a, b) => a.seq - b.seq).slice(-60);
-    outcome = parseAgentReply(await askClaude(MODEL_ID, systemPrompt(persona), userMessage(recent), 250), utterances, persona.verificationAnswer);
+    outcome = parseAgentReply(await askClaude(MODEL_ID, systemPrompt(persona), userMessage(recent), 400), utterances, persona.verificationAnswer, persona.verificationQuestion);
   } catch (err) {
     console.error('agent turn failed', err);
     return json(502, { error: 'agent failed' });

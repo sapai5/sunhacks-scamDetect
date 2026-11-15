@@ -44,10 +44,13 @@ export const TEST_SCRIPTS: TestScript[] = [
       caller('My lawyer says you can pay with gift cards from Target. Can you go get them today?'),
       elder("All right, I'll go to Target right now and get the cards."),
     ],
+    // Mike asks the family question once; the caller dodges it, then Mike gathers details.
     agentReplies: [
-      "Uh, hi, I really need to talk to Grandma, it's an emergency.",
-      "I don't remember, I hit my head in the accident. Please just put Grandma back on, there's no time.",
-      'Look, if she does not get the cards in the next hour I stay in jail. Put her back on.',
+      "Uh, hi, it's Tommy. I really need to talk to Grandma, it's an emergency.",
+      "I don't remember, I hit my head in the accident. Please, there's no time.",
+      "I'm at the county jail downtown. You can call my lawyer, Mr. Davis, at 602-555-0199.",
+      'Just two five hundred dollar Target gift cards. Scratch off the back and read me the numbers.',
+      "I don't know, it's a jail phone. Look, I have to go, just get the cards.",
     ],
   },
   {
@@ -105,9 +108,13 @@ export const TEST_SCRIPTS: TestScript[] = [
       caller('Please go to your computer and install AnyDesk so I can fix it for you.'),
       elder("Okay, I'm at the computer now. I'm typing in AnyDesk."),
     ],
+    // Mike asks one thing a real company would know; the caller can't answer, then Mike gathers details.
     agentReplies: [
       "Sir, this is very urgent, I need to speak with the account holder, she must install the program now.",
+      "I can't see that from here, that's a different department. She just needs to install AnyDesk.",
+      "My name is David Miller, employee 4471, Windows security department.",
       "We don't give out callback numbers, this is a security matter. Put her back on or her account will be frozen.",
+      'She can pay the 299 dollar repair fee with a Google Play card. Last warning.',
     ],
   },
 
