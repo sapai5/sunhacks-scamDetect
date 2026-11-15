@@ -121,8 +121,10 @@ async function onVoice(params: Record<string, string>, res: ServerResponse) {
   // Ring the elder into the same conference.
   if (DRY_RUN) return;
   try {
-    // Trial accounts reject inline `twiml` and `timeout`, so Twilio fetches the elder's TwiML from us.
-    await tw.calls.create({ to: cfg.elderPhone, from: cfg.dialFrom, url: `${cfg.publicUrl}/elder/${callSid}` }); // no `method`: trial rejects it, POST is the default
+    // Trial accounts reject inline `twiml`, `timeout` and `method`, so Twilio fetches the elder's TwiML
+    // from us. The URL carries the call's random token: Twilio's signature on this request doesn't
+    // validate (403 seen on real calls), so /elder checks the token instead.
+    await tw.calls.create({ to: cfg.elderPhone, from: cfg.dialFrom, url: `${cfg.publicUrl}/elder/${callSid}/${call.token}` });
   } catch (err) {
     console.error('dialing the elder failed', err);
   }
@@ -135,19 +137,37 @@ function onAnnounce(id: string, res: ServerResponse) {
 }
 
 createServer(async (req, res) => {
+  const [path, query = ''] = (req.url ?? '/').split('?');
+  res.on('finish', () => {
+    if (path !== '/health') console.log(JSON.stringify({ t: new Date().toISOString(), msg: 'http', method: req.method, path, status: res.statusCode }));
+  });
   try {
-    const path = (req.url ?? '/').split('?')[0];
     if (req.method === 'GET' && path === '/health') return send(res, 200, 'ok', 'text/plain');
-    if (req.method !== 'POST') return send(res, 405, 'method not allowed', 'text/plain');
-    const params = await readForm(req);
-    if (!DRY_RUN && !fromTwilio(req, params)) return send(res, 403, 'bad signature', 'text/plain');
-    if (path === '/voice') return await onVoice(params, res);
-    if (path.startsWith('/announce/')) return onAnnounce(path.slice('/announce/'.length), res);
+    if (req.method !== 'POST' && req.method !== 'GET') return send(res, 405, 'method not allowed', 'text/plain');
+    // Twilio sends POST form bodies by default; GET puts the same params in the query (signed with the full URL).
+    const params = req.method === 'POST' ? await readForm(req) : {};
+
     if (path.startsWith('/elder/')) {
       // The elder's leg joins the conference of a call we're screening right now.
-      const c = calls.get(path.slice('/elder/'.length));
-      return send(res, c ? 200 : 404, c ? elderLeg(c.conference) : '<Response><Hangup/></Response>');
+      // Authorized by the call's random token in the URL (only Twilio and we know it).
+      const [, , sid, token] = path.split('/');
+      const c = sid ? calls.get(sid) : undefined;
+      const ok = Boolean(c && token && token === c.token);
+      if (!ok) console.warn(`elder leg refused: ${c ? 'bad token' : 'unknown call'}`);
+      // Always 200: an error status makes Twilio play its "application error" message.
+      return send(res, 200, ok ? elderLeg(c!.conference) : '<Response><Hangup/></Response>');
     }
+
+    if (!DRY_RUN && !fromTwilio(req, params)) {
+      console.warn(
+        `signature check failed for ${req.method} ${path}: expected URL ${cfg.publicUrl}${req.url}, ` +
+          `host header ${req.headers.host}, params ${Object.keys(params).join(',')}`,
+      );
+      return send(res, 403, 'bad signature', 'text/plain');
+    }
+    if (req.method === 'GET') Object.assign(params, Object.fromEntries(new URLSearchParams(query)));
+    if (path === '/voice') return await onVoice(params, res);
+    if (path.startsWith('/announce/')) return onAnnounce(path.slice('/announce/'.length), res);
     if (path === '/status') {
       if (params.CallStatus === 'completed') endCall(params.CallSid, 'hung up');
       return send(res, 204, '');
