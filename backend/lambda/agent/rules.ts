@@ -19,18 +19,44 @@ export const GATHER_LINES = [
   'Hang on, let me grab a pen. How exactly were you wanting the money sent?',
 ];
 
-const STOPWORDS = new Set(['the', 'a', 'an', 'did', 'we', 'you', 'your', 'our', 'what', 'when', 'were', 'was', 'is', 'to', 'of', 'and', 'in', 'on', 'for', 'do', 'it', 'that', 'can', 'tell', 'me', 'little']);
+const STOPWORDS = new Set([
+  'the', 'a', 'an', 'did', 'we', 'you', 'your', 'our', 'what', 'when', 'were', 'was', 'is', 'to', 'of', 'and', 'in', 'on',
+  'for', 'do', 'it', 'that', 'can', 'tell', 'me', 'little', 'which', 'from', 'calling', 'call', 'need', 'give', 'please',
+  'before', 'any', 'further', 'first', 'this', 'with', 'are', 'there', 'just', 'okay', 'right', 'now', 'here', 'she', 'her',
+]);
 const contentWords = (s: string) => normalizeText(s).split(' ').filter((w) => w.length > 2 && !STOPWORDS.has(w));
 function normalizeText(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** Share of `question`'s content words that also appear in `line`. */
+function overlap(line: string, question: string): number {
+  const q = contentWords(question);
+  if (q.length < 2) return 0;
+  const words = new Set(contentWords(line));
+  return q.filter((w) => words.has(w)).length / q.length;
+}
+
 /** True if `line` asks the verification question: it shares most of the question's content words. */
 export function asksVerification(line: string, question: string): boolean {
-  const q = contentWords(question);
-  if (!q.length || !line.includes('?')) return false;
-  const words = new Set(contentWords(line));
-  return q.filter((w) => words.has(w)).length / q.length >= 0.6;
+  return line.includes('?') && overlap(line, question) >= 0.6;
+}
+
+/** The security question in the agent's first line: its last sentence ending in "?". */
+export function firstQuestion(line: string): string {
+  const questions = line.match(/[^.!?]*\?/g);
+  return questions?.at(-1)?.trim() ?? '';
+}
+
+/**
+ * True if `line` asks the security check again: the family question, or (for callers who claim to be
+ * a bank, police, a company) whatever Mike asked first, even reworded as "I need that … first."
+ */
+export function repeatsSecurityCheck(line: string, agentLines: string[], verificationQuestion: string): boolean {
+  if (verificationQuestion && asksVerification(line, verificationQuestion)
+      && agentLines.some((l) => asksVerification(l, verificationQuestion))) return true;
+  const first = agentLines.length ? firstQuestion(agentLines[0]) : '';
+  return Boolean(first) && overlap(line, first) >= 0.6;
 }
 
 export const SAFE_LINE = "Sorry, I can't help with that over the phone. Can you answer my question first?";
@@ -69,11 +95,10 @@ export function parseAgentReply(text: string, utterances: Utterance[], verificat
     : 'active';
   let summary = typeof raw.summary === 'string' ? raw.summary.slice(0, MAX_SUMMARY) : '';
 
-  // The security question is asked once. If the model tries again, gather details instead.
-  const agentLines = utterances.filter((u) => u.speaker === 'agent');
-  if (status === 'active' && verificationQuestion && asksVerification(say, verificationQuestion)
-      && agentLines.some((u) => asksVerification(u.text, verificationQuestion))) {
-    const used = new Set(agentLines.map((u) => u.text));
+  // The security check is asked once. If the model tries again, gather details instead.
+  const agentLines = [...utterances].sort((a, b) => a.seq - b.seq).filter((u) => u.speaker === 'agent').map((u) => u.text);
+  if (status === 'active' && repeatsSecurityCheck(say, agentLines, verificationQuestion)) {
+    const used = new Set(agentLines);
     say = GATHER_LINES.find((l) => !used.has(l)) ?? GATHER_LINES[0];
   }
 

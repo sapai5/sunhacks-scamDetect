@@ -92,6 +92,21 @@ describe('parseAgentReply', () => {
     expect(r.status).toBe('active');
   });
 
+  it('does not repeat an organization check either, even reworded without a question mark', () => {
+    const history = [
+      { ...u('agent', 0), text: "Hi, this is Mike, her son. Can you tell me your employee number and which department you're calling from?" },
+      { ...u('caller', 1), text: 'This is urgent, she must install the program now.' },
+    ];
+    const r = parseAgentReply(reply({ say: 'I need that employee number and department name before we go any further.', status: 'active' }), history, 'Biscuit', Q);
+    expect(GATHER_LINES).toContain(r.say);
+  });
+
+  it('lets a different follow-up through', () => {
+    const history = [{ ...u('agent', 0), text: `Hi, this is Mike. ${Q}` }, { ...u('caller', 1), text: 'Uh, I forget.' }];
+    const r = parseAgentReply(reply({ say: 'Okay. Which jail are you at right now?', status: 'active' }), history, 'Biscuit', Q);
+    expect(r.say).toBe('Okay. Which jail are you at right now?');
+  });
+
   it('lets the first security question through', () => {
     const r = parseAgentReply(reply({ say: `Hi, this is Mike. ${Q}`, status: 'active' }), [u('caller', 0)], 'Biscuit', Q);
     expect(r.say).toContain('family dog');
