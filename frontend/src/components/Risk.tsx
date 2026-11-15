@@ -30,7 +30,7 @@ export const PANEL_COPY: Record<RiskViewState, { title: string; body: string }> 
   green: { title: 'This call looks safe', body: 'Keep talking as usual.' },
   yellow: { title: 'Be careful', body: "Don't share money, gift cards or codes yet." },
   verifying: { title: "Checking who's calling", body: 'Ask the caller a family question.' },
-  red: { title: 'This is likely a scam', body: 'Hang up now. Your family has been told.' },
+  red: { title: 'This is likely a scam', body: 'Hang up your phone now. Your family has been told.' },
 };
 
 /** Figma: Risk/StatusPanel */

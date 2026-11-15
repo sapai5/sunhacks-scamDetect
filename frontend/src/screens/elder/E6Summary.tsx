@@ -1,7 +1,9 @@
 // E6 Call ended summary. Figma node 15:71. Built on the client from the last RiskState.
 import type { RiskState } from '../../../../contracts/index.js';
+import { Link } from 'react-router';
 import { BigButton, RiskLight, TextButton } from '../../components/Risk';
 import { RISK } from '../../lib/fixtures';
+import './callLog.css';
 
 const COPY = {
   red: { title: 'You hung up on a likely scam' },
@@ -29,6 +31,11 @@ export default function E6Summary({ risk = RISK.red, familyPhone, onDone }: E6Pr
         <BigButton kind="primary" href={familyPhone ? `tel:${familyPhone.replace(/[^+\d]/g, '')}` : undefined} onClick={familyPhone ? undefined : onDone}>
           Call my family
         </BigButton>
+        {risk?.callId && (
+          <Link className="call-log-link" to={`/elder/call?id=${encodeURIComponent(risk.callId)}`}>
+            See what was said
+          </Link>
+        )}
         {onDone && <TextButton onClick={onDone}>Done</TextButton>}
       </div>
     </div>

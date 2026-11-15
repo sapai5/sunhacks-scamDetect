@@ -10,9 +10,11 @@ export interface O1Props {
   initial?: Contact[];
   /** Save the contacts and go to the next step. */
   onNext?: (family: Contact[]) => void;
+  /** Submit button text ("Save" when edited from Settings). */
+  submitLabel?: string;
 }
 
-export default function O1FamilyContacts({ initial, onNext }: O1Props) {
+export default function O1FamilyContacts({ initial, onNext, submitLabel = 'Next' }: O1Props) {
   const [family, setFamily] = useState<Contact[]>(initial?.length ? initial : SAMPLE_FAMILY);
   const set = (i: number, patch: Partial<Contact>) => setFamily((f) => f.map((c, j) => (j === i ? { ...c, ...patch } : c)));
 
@@ -38,7 +40,7 @@ export default function O1FamilyContacts({ initial, onNext }: O1Props) {
       )}
       {/* Figma: Button (BigButton styles; a real submit so Enter works) */}
       <button type="submit" className="big-button big-button--primary">
-        Next
+        {submitLabel}
       </button>
     </form>
   );
