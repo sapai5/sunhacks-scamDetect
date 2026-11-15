@@ -10,9 +10,12 @@ const IDLE_SECONDS = 20;
 
 type Twiml = InstanceType<typeof VoiceResponse>;
 
-/** Ring the elder. `callerId` must be the trial account's assigned number on trial accounts. */
-function dialElder(r: Twiml, elderPhone: string, callerId?: string) {
-  const dial = r.dial(callerId ? { callerId } : {});
+/**
+ * Ring the elder. `callerId` must be the trial account's assigned number on trial accounts.
+ * `action`: fetched for the caller's next TwiML when the forwarding ends (see screenedCall).
+ */
+function dialElder(r: Twiml, elderPhone: string, callerId?: string, action?: string) {
+  const dial = r.dial({ ...(callerId ? { callerId } : {}), ...(action ? { action } : {}) });
   dial.number(elderPhone);
 }
 
@@ -28,12 +31,23 @@ export function directDial(elderPhone: string, callerId?: string): string {
  * Inbound track = the caller; outbound track = what the caller hears (the elder, later our agent).
  * The stream started with <Start> keeps running when we later redirect the call to the agent.
  */
-export function screenedCall(opts: { mediaUrl: string; token: string; callSid: string; elderPhone: string; callerId?: string }): string {
+export function screenedCall(opts: {
+  mediaUrl: string;
+  token: string;
+  callSid: string;
+  elderPhone: string;
+  callerId?: string;
+  /**
+   * Where the caller goes when the forwarding ends. A takeover moves the elder's leg to the agent
+   * stream, which ends the <Dial>; this URL then moves the caller there too, so nobody is dropped.
+   */
+  afterDialUrl?: string;
+}): string {
   const r = new VoiceResponse();
   const stream = r.start().stream({ url: opts.mediaUrl, track: 'both_tracks' });
   stream.parameter({ name: 'token', value: opts.token });
   stream.parameter({ name: 'callSid', value: opts.callSid });
-  dialElder(r, opts.elderPhone, opts.callerId);
+  dialElder(r, opts.elderPhone, opts.callerId, opts.afterDialUrl);
   return r.toString();
 }
 
@@ -64,16 +78,25 @@ export function agentTurn(opts: {
 }
 
 /**
- * Takeover with Nova Sonic: say the opening line, then connect the caller to a two-way stream
- * (our /agent WebSocket) that carries the caller's voice in and the agent's voice out.
- * Like agentTurn, redirecting the caller here disconnects the elder.
+ * Takeover with Nova Sonic: say the opening line, then connect this leg (the caller's or the elder's)
+ * to a two-way stream (our /agent WebSocket). The bridge mixes the streams, so the caller, the elder
+ * and the agent all hear each other: a three-way call without a Twilio conference.
  */
-export function agentStream(opts: { opening: string; streamUrl: string; token: string; callSid: string }): string {
+export function agentStream(opts: { opening: string; streamUrl: string; token: string; callSid: string; leg: 'caller' | 'elder' }): string {
   const r = new VoiceResponse();
   r.say({ voice: AGENT_VOICE }, opts.opening);
   const stream = r.connect().stream({ url: opts.streamUrl });
   stream.parameter({ name: 'token', value: opts.token });
   stream.parameter({ name: 'callSid', value: opts.callSid });
+  stream.parameter({ name: 'leg', value: opts.leg });
+  return r.toString();
+}
+
+/** Say one line on a leg, then hang it up. */
+export function sayAndHangUp(text: string): string {
+  const r = new VoiceResponse();
+  r.say({ voice: AGENT_VOICE }, text);
+  r.hangup();
   return r.toString();
 }
 

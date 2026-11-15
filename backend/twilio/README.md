@@ -6,15 +6,19 @@ caller ──> Twilio number ──POST /voice──> this server
    unknown caller  → both audio tracks stream to /media, then the call is forwarded to the elder
 /media  → mu-law → PCM → Amazon Transcribe (caller track, elder track)
         → each sentence → IngestFn (Track B) → RiskState in Calls → pushed to the app
-agent_takeover → the caller's call is redirected to the agent, which drops the elder's leg;
-                 the opening line is <Say>, then a two-way stream (/agent) where Amazon Nova Sonic talks
-                 with the caller and handles the turn-taking. Claude Haiku (the Agent Lambda) reads each
-                 caller reply and decides the verdict; Sonic never gets the verification answer.
-                 AGENT_VOICE=say falls back to saying each Agent Lambda line with <Say>.
+agent_takeover → the agent joins the call and the elder stays on it. The elder's leg and the caller's leg
+                 each hear the opening line (<Say>) and are connected to a two-way stream (/agent). The
+                 bridge mixes them into a three-way call (no Twilio conference, so it works on a trial
+                 account): each person hears the other and the agent. Amazon Nova Sonic hears both, talks to
+                 both and builds on the elder's questions; Transcribe still hears each person apart, and
+                 Claude Haiku (the Agent Lambda) reads each caller reply and decides the verdict. Sonic never
+                 gets the verification answer, and is told to cut in if the elder starts to say it.
+                 AGENT_VOICE=say falls back to saying each Agent Lambda line with <Say> to the caller alone
+                 (the elder's leg drops).
                → each agent line goes to IngestFn as speaker 'agent' (the app shows it)
-"Let me talk"  → the app sets Calls.agentStatus = stopped → the agent goes quiet, the elder's phone rings again
-verified       → "Here she is", then the elder's phone rings again
-scam confirmed → goodbye, hang up
+"Let me talk"  → the app sets Calls.agentStatus = stopped → the agent goes quiet; the two keep talking
+verified       → "That checks out. I'll let you two talk.", the agent steps back, the two keep talking
+scam confirmed → goodbye to the caller and hang up; the elder hears why, then their leg ends
 call ends      → Calls.ended = true (after queued sentences are scored) → the app closes the call, shows the summary
 ```
 
@@ -65,12 +69,15 @@ when you want a sim on the demo phone. On PowerShell, set the variables with `$e
 ## Trial limits
 
 75 voice minutes, 30 days, 10-minute calls, verified numbers only, a "press any key" message.
-Upgrading removes them (paid to Twilio; AWS credits don't cover it) and would allow a conference,
-so the elder could stay on the line and hear the agent.
+Upgrading removes them (paid to Twilio; AWS credits don't cover it). The elder staying on the line
+during a takeover doesn't need it: the bridge mixes the three-way call itself.
 
 ## Status
 
 - Real calls: forwarding, both tracks, scoring, red and the family alert work (tested).
 - Real calls: the takeover redirect works, the monitoring stream keeps running after it, and the
   Nova Sonic agent talks with the caller (tested).
+- Three-way takeover (elder stays on the line): tested with the simulator (both legs, the elder speaking
+  during the takeover, verified and scam endings). Not verified on a real call yet: moving the elder's
+  leg to the agent stream, and Twilio fetching the caller's TwiML from the <Dial> action URL (/after).
 - Not verified on a real call yet: the hand-back re-dial.

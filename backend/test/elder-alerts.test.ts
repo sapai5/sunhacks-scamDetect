@@ -17,11 +17,11 @@ describe('elderAlertsFor: when the elder gets a text / notification', () => {
     expect(kinds({ level: 'green' }, { level: 'yellow' }, 'CA1')).toEqual([]);
   });
 
-  it('tells the elder the agent took over (their leg drops), by the agent name', () => {
+  it('tells the elder the agent joined the call and to stay on the line, by the agent name', () => {
     const [a] = elderAlertsFor({ level: 'red', agentStatus: 'idle' }, { level: 'red', agentStatus: 'active' }, 'CA1', 'Dana');
     expect(a.kind).toBe('takeover');
-    expect(a.title).toBe('Dana took over this call');
-    expect(a.body).toMatch(/Don't call this number back/);
+    expect(a.title).toBe('Dana joined this call');
+    expect(a.body).toMatch(/Stay on the line/);
     expect(a.path).toBe('/elder/live');
   });
 

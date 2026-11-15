@@ -81,9 +81,10 @@ ws.send(JSON.stringify({ event: 'stop' }));
 ws.close();
 
 /**
- * Nova Sonic takeover: what Twilio's <Connect><Stream> does after the redirect. The caller's voice goes
- * up a second, two-way stream (/agent) and the agent's voice comes back on it. Each scripted reply is
- * spoken once the agent has finished talking; after the last one the caller stays silent.
+ * Nova Sonic takeover: what Twilio's <Connect><Stream> does on both legs. The caller and the elder each
+ * get a two-way stream (/agent); the bridge mixes them into a three-way call with the agent. Each
+ * scripted line is spoken once the agent has finished talking: the caller's replies, with one line from
+ * the elder after the first. After the last one everybody stays silent.
  */
 async function talkToSonicAgent(replies: string[]) {
   for (let i = 0; i < 40; i++) {
@@ -93,52 +94,78 @@ async function talkToSonicAgent(replies: string[]) {
     await pause(500);
   }
   await pause(1000);
-  const speeches = await Promise.all(replies.map((r) => tts(r, 'Joey')));
-  const agent = new WebSocket(`${base.replace('http', 'ws')}/agent`);
-  await new Promise((r) => agent.once('open', r));
-  agent.send(JSON.stringify({ event: 'connected' }));
-  agent.send(JSON.stringify({ event: 'start', streamSid: 'MZsim', start: { streamSid: 'MZsim', callSid, customParameters: { token, callSid } } }));
-  let closed = false;
-  let playingUntil = 0; // when the agent's audio received so far finishes playing
-  let heardMs = 0;
-  let agentSpoke = true; // the opening line (Twilio <Say>) was just said
-  agent.on('close', () => (closed = true));
-  agent.on('message', (raw) => {
-    const m = JSON.parse(raw.toString()) as { event: string; media?: { payload: string } };
-    if (m.event === 'media' && m.media) {
-      const ms = Buffer.from(m.media.payload, 'base64').length / 8; // 8 mu-law bytes per ms
-      playingUntil = Math.max(Date.now(), playingUntil) + ms;
-      heardMs += ms;
-      agentSpoke = true;
-    } else if (m.event === 'clear') {
-      playingUntil = Date.now(); // we talked over the agent
-    }
-  });
+  const elderLine = process.env.SIM_ELDER_LINE ?? "I'd like to hear that too. Go on, answer the question.";
+  const turns: { who: 'caller' | 'elder'; text: string; audio: Uint8Array }[] = await Promise.all(
+    replies.map(async (text) => ({ who: 'caller' as const, text, audio: await tts(text, 'Joey') })),
+  );
+  turns.splice(1, 0, { who: 'elder', text: elderLine, audio: await tts(elderLine, 'Ruth') });
 
-  let speech: Uint8Array | undefined;
+  let agentSpoke = true; // the opening line (Twilio <Say>) was just said
+  let lastAgentAudio = 0;
+  let speaking: 'caller' | 'elder' | undefined;
+  const open = async (leg: 'caller' | 'elder') => {
+    const sock = new WebSocket(`${base.replace('http', 'ws')}/agent`);
+    await new Promise((r) => sock.once('open', r));
+    sock.send(JSON.stringify({ event: 'connected' }));
+    sock.send(JSON.stringify({ event: 'start', streamSid: `MZ${leg}`, start: { streamSid: `MZ${leg}`, callSid, customParameters: { token, callSid, leg } } }));
+    const state = { sock, closed: false, heardMs: 0 };
+    sock.on('close', () => (state.closed = true));
+    sock.on('message', (raw) => {
+      const m = JSON.parse(raw.toString()) as { event: string; media?: { payload: string } };
+      if (m.event !== 'media' || !m.media) return;
+      const bytes = Buffer.from(m.media.payload, 'base64');
+      if (bytes.every((x) => x === 0xff || x === 0x7f)) return; // silence
+      state.heardMs += bytes.length / 8; // 8 mu-law bytes per ms
+      // Sound on the caller's leg while neither person is talking is the agent.
+      if (leg === 'caller' && !speaking) {
+        agentSpoke = true;
+        lastAgentAudio = Date.now();
+      }
+    });
+    return state;
+  };
+  const legs = { caller: await open('caller'), elder: await open('elder') };
+
+  let turn: (typeof turns)[number] | undefined;
   let pos = 0;
+  let quietSince = 0;
   const start = Date.now();
-  for (let n = 1; !closed && Date.now() - start < 150_000; n++) {
-    if (!speech && agentSpoke && Date.now() > playingUntil + 800 && speeches.length) {
-      console.log(`  caller (to agent): ${replies[replies.length - speeches.length]}`);
-      speech = speeches.shift();
+  // Until the bridge hangs up on the caller, or 20 s after the last line (verified: the two keep talking).
+  for (let n = 1; !legs.caller.closed && Date.now() - start < 150_000 && (turns.length || turn || Date.now() - quietSince < 20_000); n++) {
+    // The person who just spoke comes back through the bridge for a moment: wait before listening for the agent.
+    if (!turn && speaking && Date.now() - quietSince > 300) speaking = undefined;
+    if (!turn && !speaking && agentSpoke && Date.now() > lastAgentAudio + 800 && turns.length) {
+      turn = turns.shift()!;
+      speaking = turn.who;
+      console.log(`  ${turn.who} (on the three-way call): ${turn.text}`);
       pos = 0;
       agentSpoke = false;
     }
     let chunk = SILENCE;
-    if (speech) {
-      chunk = Uint8Array.from({ length: 160 }, (_, k) => speech![pos + k] ?? 0xff);
+    if (turn) {
+      chunk = Uint8Array.from({ length: 160 }, (_, k) => turn!.audio[pos + k] ?? 0xff);
       pos += 160;
-      if (pos >= speech.length) speech = undefined;
+      if (pos >= turn.audio.length) {
+        turn = undefined;
+        quietSince = Date.now();
+      }
     }
-    agent.send(JSON.stringify({ event: 'media', streamSid: 'MZsim', media: { track: 'inbound', payload: Buffer.from(chunk).toString('base64') } }));
+    for (const leg of ['caller', 'elder'] as const) {
+      if (legs[leg].closed) continue;
+      const payload = Buffer.from(speaking === leg && chunk !== SILENCE ? chunk : SILENCE).toString('base64');
+      legs[leg].sock.send(JSON.stringify({ event: 'media', streamSid: `MZ${leg}`, media: { track: 'inbound', payload } }));
+    }
     frame('inbound', SILENCE); // the monitoring stream keeps running, like on a real call
     frame('outbound', SILENCE);
     const wait = start + n * 20 - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   }
-  console.log(`  agent stream ${closed ? 'closed by the bridge' : 'still open after 150 s'}; heard ${(heardMs / 1000).toFixed(1)} s of agent audio`);
-  agent.close();
+  console.log(
+    `  caller's stream ${legs.caller.closed ? 'closed by the bridge' : 'still open'}, elder's ${legs.elder.closed ? 'closed' : 'open'}; ` +
+      `the caller heard ${(legs.caller.heardMs / 1000).toFixed(1)} s of sound (agent + elder), the elder ${(legs.elder.heardMs / 1000).toFixed(1)} s (agent + caller)`,
+  );
+  legs.caller.sock.close();
+  legs.elder.sock.close();
 }
 
 // 5. What did the backend record?

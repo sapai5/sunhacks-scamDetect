@@ -1,15 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { encodeMulaw, mulawToPcm16, pcm16ToMulaw, speechMs } from '../twilio/audio.js';
+import { encodeMulaw, mixPcm16, mulawToPcm16, pcm16ToMulaw, speechMs } from '../twilio/audio.js';
 import { openingLine, sonicSystemPrompt } from '../twilio/sonic.js';
-import { agentStream, agentTurn, directDial, screenedCall } from '../twilio/twiml.js';
+import { agentStream, agentTurn, directDial, sayAndHangUp, screenedCall } from '../twilio/twiml.js';
 
 describe('Nova Sonic takeover', () => {
   const persona = { elderName: 'Rose', agentName: 'Mike', agentRelation: 'son', verificationQuestion: 'What did we name the family dog?' };
 
-  it('says the opening line, then connects the caller to the two-way agent stream', () => {
-    const xml = agentStream({ opening: openingLine(persona), streamUrl: 'wss://bridge.example/agent', token: 'tok', callSid: 'CA1' });
-    expect(xml).toMatch(/<Say[^>]*>Hi, this is Mike, her son\..*<\/Say><Connect><Stream url="wss:\/\/bridge\.example\/agent">/);
+  it('says the opening line, then connects that leg to the two-way agent stream', () => {
+    const xml = agentStream({ opening: openingLine(persona), streamUrl: 'wss://bridge.example/agent', token: 'tok', callSid: 'CA1', leg: 'elder' });
+    expect(xml).toMatch(/<Say[^>]*>Hi, this is Mike, Rose's son\..*<\/Say><Connect><Stream url="wss:\/\/bridge\.example\/agent">/);
     expect(xml).toContain('<Parameter name="token" value="tok"/>');
+    expect(xml).toContain('<Parameter name="leg" value="elder"/>');
+  });
+
+  it('tells the voice model the elder is still on the call and must not be asked the family question', () => {
+    const prompt = sonicSystemPrompt(persona, []);
+    expect(prompt).toContain('three-way call');
+    expect(prompt).toContain('Never ask Rose this question');
   });
 
   it('gives the voice model the family question and the call so far, and tells it not to end the call', () => {
@@ -41,6 +48,18 @@ describe('mu-law audio', () => {
     expect(Array.from(pcm16ToMulaw(pcm))).toEqual([encodeMulaw(1000), encodeMulaw(-1000)]);
   });
 
+  it('mixes two voices sample by sample, clips, and treats a missing or short part as silence', () => {
+    const a = Buffer.alloc(4);
+    a.writeInt16LE(1000, 0);
+    a.writeInt16LE(30000, 2);
+    const b = Buffer.alloc(4);
+    b.writeInt16LE(-400, 0);
+    b.writeInt16LE(30000, 2);
+    const out = mixPcm16(4, a, b, undefined, Buffer.alloc(0));
+    expect([out.readInt16LE(0), out.readInt16LE(2)]).toEqual([600, 32767]);
+    expect(mixPcm16(4, undefined).equals(Buffer.alloc(4))).toBe(true);
+  });
+
   it('estimates longer speech for longer lines', () => {
     expect(speechMs('one two three four five six')).toBeGreaterThan(speechMs('hi'));
   });
@@ -63,6 +82,12 @@ describe('TwiML', () => {
     expect(x).toContain('<Number>+19715550100</Number>');
     expect(x).not.toContain('Conference');
     expect(x).not.toContain('method=');
+  });
+
+  it('sends the caller to the after-dial URL when the forwarding ends, so a takeover can keep both on the line', () => {
+    const x = screenedCall({ mediaUrl: 'wss://h/media', token: 'tok', callSid: 'CA1', elderPhone: '+19715550100', afterDialUrl: 'https://h/after/CA1/tok' });
+    expect(x).toContain('<Dial action="https://h/after/CA1/tok"><Number>+19715550100</Number></Dial>');
+    expect(sayAndHangUp('I ended the call.')).toMatch(/<Say[^>]*>I ended the call\.<\/Say><Hangup\/>/);
   });
 
   it('agent turn: says the line, then waits for the reply and loops back', () => {

@@ -6,14 +6,16 @@
 //   /media WebSocket   -> mu-law -> PCM -> Transcribe (one stream per track)
 //     inbound track  = caller, outbound track = what the caller hears = elder (later our agent)
 //   each final sentence -> IngestFn (Track B) -> RiskState, saved in Calls, pushed to the app
-//   agent_takeover     -> the caller's call is redirected to the agent (this drops the elder's leg).
-//                         Default: opening line, then a two-way stream to /agent where Amazon Nova Sonic
-//                         talks with the caller; the Agent Lambda (Claude Haiku) reads each caller reply
-//                         and decides the verdict.
-//                         AGENT_VOICE=say (fallback): each Agent Lambda line is <Say>, then the agent waits.
-//   verified           -> "Here she is", then the agent hands back by dialing the elder again
-//   scam confirmed     -> goodbye, hang up
-// Trial-safe: no conferences, no inline TwiML, no `method` parameters.
+//   agent_takeover     -> the agent joins the call and the elder stays on it. Both legs (caller, elder) hear
+//                         the opening line and are then connected to two-way streams on /agent. The bridge
+//                         mixes them: each person hears the other and the agent, and Amazon Nova Sonic hears
+//                         both, so it can build on the elder's questions. Transcribe still hears each person
+//                         apart; the Agent Lambda (Claude Haiku) reads each caller reply and decides the verdict.
+//                         AGENT_VOICE=say (fallback): each Agent Lambda line is <Say> to the caller only, and
+//                         the elder's leg drops, as before.
+//   verified           -> the agent says so and steps back; the caller and the elder keep talking
+//   scam confirmed     -> goodbye to the caller and hang up; the elder is told why, then their leg ends
+// Trial-safe: no conferences (the bridge is the mixer), no inline TwiML, no `method` parameters.
 //
 // Run: npm run twilio -w backend   (see backend/twilio/README.md)
 import { randomUUID } from 'node:crypto';
@@ -29,13 +31,13 @@ import twilio from 'twilio';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { AgentResponse, AgentStatus, IngestRequest, RiskState, Utterance } from '../../contracts/index.js';
 import { isTrusted } from '../telephony/contacts-check/index.js';
-import { mulawToPcm16, pcm16ToMulaw, speechMs } from './audio.js';
+import { mixPcm16, mulawToPcm16, pcm16ToMulaw, speechMs } from './audio.js';
 import { loadConfig } from './config.js';
 import { elderTexter } from './elderTexts.js';
 import { loadLocalBackend } from './local-backend.js';
 import { openingLine, sonicSystemPrompt, startSonic, type SonicPersona, type SonicSession } from './sonic.js';
 import { startTrackTranscriber, type TrackTranscriber } from './transcriber.js';
-import { agentStream, agentTurn as agentTwiml, directDial, hangup, idle, screenedCall } from './twiml.js';
+import { agentStream, agentTurn as agentTwiml, directDial, hangup, idle, sayAndHangUp, screenedCall } from './twiml.js';
 
 const cfg = await loadConfig();
 const DRY_RUN = process.env.TWILIO_DRY_RUN === '1'; // local simulation: no Twilio REST calls
@@ -78,26 +80,45 @@ interface Call {
    */
   mutedUntil: number;
   tracks: Partial<Record<'caller' | 'elder', TrackTranscriber>>;
-  /** Set while Nova Sonic has the call (AGENT_VOICE=sonic). */
+  /** Set while Nova Sonic is on the call (AGENT_VOICE=sonic). */
   sonic?: SonicTakeover;
+  /**
+   * The three-way call: set when Nova Sonic joins, and kept after it steps back (verified, "Let me
+   * talk"), because from then on the caller and the elder hear each other through the bridge.
+   */
+  legs?: Record<'caller' | 'elder', Leg>;
+  /** The elder's leg of the forwarded call (a call of its own), once it's on the three-way call. */
+  elderSid?: string;
+  /** The caller's TwiML for the takeover, waiting for Twilio to fetch it when the <Dial> ends (/after). */
+  callerTwiml?: string;
 }
 
-/** A takeover where Nova Sonic talks with the caller over a two-way Twilio stream. */
-interface SonicTakeover {
-  session: SonicSession;
-  /** The two-way stream, once Twilio has connected it (after the opening line). */
+/** One person's side of the three-way call: a two-way Twilio stream. */
+interface Leg {
+  /** Set once Twilio has connected the stream (after the opening line). */
   ws?: WebSocket;
   streamSid?: string;
+  /** What this person hasn't heard yet: the other person's 20 ms frames, and the agent's voice (PCM). */
+  other: Buffer[];
+  voice: Buffer;
+}
+const newLeg = (): Leg => ({ other: [], voice: Buffer.alloc(0) });
+/** If a leg's stream stalls, drop the oldest audio for it rather than fall behind (frames of 20 ms). */
+const MAX_BACKLOG = 25;
+
+/** A takeover where Nova Sonic talks with the caller and the elder. */
+interface SonicTakeover {
+  session: SonicSession;
   /** What the agent is saying this turn; saved as one line when the turn ends. */
   agentText: string;
   flushTimer?: NodeJS.Timeout;
   judgeTimer?: NodeJS.Timeout;
   judging: boolean;
   judgeAgain: boolean;
-  /** When the audio we sent finishes playing, and when the caller was last heard (epoch ms). */
+  /** When the agent's voice finishes playing, and when someone on the call was last heard (epoch ms). */
   speakingUntil: number;
   lastHeard: number;
-  /** "Are you still there?" prompts since the caller last spoke. */
+  /** "Are you still there?" prompts since someone last spoke. */
   prompts: number;
   ticker: NodeJS.Timeout;
   ticking: boolean;
@@ -172,7 +193,8 @@ async function onVoice(params: Record<string, string>, res: ServerResponse) {
   log(callSid, 'unknown caller, screening');
   const mediaUrl = `${cfg.publicUrl.replace(/^http/, 'ws')}/media`;
   // Forward to the elder. On trial accounts the caller ID must be the assigned trial number.
-  send(res, 200, screenedCall({ mediaUrl, token: call.token, callSid, elderPhone: cfg.elderPhone, callerId: cfg.dialFrom }));
+  const afterDialUrl = `${cfg.publicUrl}/after/${callSid}/${call.token}`;
+  send(res, 200, screenedCall({ mediaUrl, token: call.token, callSid, elderPhone: cfg.elderPhone, callerId: cfg.dialFrom, afterDialUrl }));
 }
 
 /** Our own TwiML URLs during a takeover. The call's token in the path authorizes them. */
@@ -188,6 +210,13 @@ function onCallTwiml(path: string, res: ServerResponse) {
     return send(res, 200, hangup());
   }
   if (kind === 'idle') return send(res, 200, idle(idleUrl(call)));
+  if (kind === 'after') {
+    // The <Dial> to the elder ended. During a takeover that's us moving the elder's leg to the agent
+    // stream, and the caller follows; otherwise the elder hung up or didn't answer.
+    const twiml = call.callerTwiml;
+    call.callerTwiml = undefined;
+    return send(res, 200, twiml ?? hangup());
+  }
   const twiml = id ? turns.get(id) : undefined;
   if (id) turns.delete(id);
   send(res, 200, twiml ?? idle(idleUrl(call)));
@@ -204,7 +233,7 @@ createServer(async (req, res) => {
     // Twilio sends POST form bodies by default; GET puts the same params in the query (signed with the full URL).
     const params = req.method === 'POST' ? await readForm(req) : {};
 
-    if (path.startsWith('/turn/') || path.startsWith('/idle/')) return onCallTwiml(path, res);
+    if (path.startsWith('/turn/') || path.startsWith('/idle/') || path.startsWith('/after/')) return onCallTwiml(path, res);
 
     if (!DRY_RUN && !fromTwilio(req, params)) {
       console.warn(
@@ -268,6 +297,7 @@ function onMedia(ws: WebSocket) {
       log(c.callSid, 'media stream started');
     } else if (m.event === 'media' && call && m.media) {
       const speaker = m.media.track === 'inbound' ? 'caller' : 'elder';
+      if (call.legs?.[speaker].ws) return; // on the three-way call, that person's own stream carries their voice
       const muted = speaker === 'elder' && Date.now() < call.mutedUntil;
       call.tracks[speaker]?.push(mulawToPcm16(Buffer.from(m.media.payload, 'base64')), muted);
     } else if (m.event === 'stop' && call) {
@@ -278,9 +308,9 @@ function onMedia(ws: WebSocket) {
   ws.on('close', () => call && streamEnded(call, 'socket closed'));
 }
 
-/** The monitoring stream is gone, so the call is over, unless Nova Sonic's own stream has the caller. */
+/** The monitoring stream is gone, so the call is over, unless the three-way call's own streams carry it. */
 function streamEnded(call: Call, why: string) {
-  if (call.sonic) return log(call.callSid, 'monitoring stream ended during the takeover', { why });
+  if (call.legs) return log(call.callSid, 'monitoring stream ended during the three-way call', { why });
   endCall(call.callSid, why);
 }
 
@@ -305,10 +335,10 @@ function endCall(callSid: string | undefined, why: string) {
   clearTimeout(call.silenceTimer);
   call.tracks.caller?.stop();
   call.tracks.elder?.stop();
-  if (call.sonic) {
-    stopSonic(call, call.sonic);
-    call.sonic.ws?.close();
-  }
+  if (call.sonic) stopSonic(call, call.sonic);
+  // Closing a leg's stream ends its <Connect>, so the elder's leg hangs up with the caller's.
+  call.legs?.caller.ws?.close();
+  call.legs?.elder.ws?.close();
   log(call.callSid, 'call ended', { why, sentences: call.utterances.length });
   // Tell the app (Calls -> push) once the sentences still queued are scored, so it shows the final result.
   call.ingestChain = call.ingestChain.then(() => markEnded(call));
@@ -337,13 +367,19 @@ async function markEnded(call: Call) {
 
 function onSentence(call: Call, speaker: 'caller' | 'elder', text: string) {
   if (!calls.has(call.callSid)) return;
-  // During a Nova Sonic takeover the caller's words come from Sonic's own transcript (recordLine).
-  if (call.sonic) return;
   const ts = Date.now();
   call.utterances.push({ callId: call.callSid, elderId: cfg.elderId, speaker, text, ts, seq: call.utterances.length });
   log(call.callSid, 'sentence', { speaker, text });
 
-  if (call.agentStatus === 'active') {
+  if (call.sonic) {
+    // Nova Sonic has the conversation (it hears the caller and the elder as one voice). Transcribe
+    // hears them apart, so the judge knows who said what: each caller reply goes to it.
+    if (speaker === 'caller' && !call.sonic.closing) {
+      const t = call.sonic;
+      clearTimeout(t.judgeTimer);
+      t.judgeTimer = setTimeout(() => void judge(call, t), JUDGE_DELAY_MS);
+    }
+  } else if (call.agentStatus === 'active') {
     // The caller is answering our agent: reply after they pause. IngestFn still records the line.
     if (speaker === 'caller') {
       clearTimeout(call.silenceTimer);
@@ -522,15 +558,20 @@ async function finishAgent(call: Call, status: AgentStatus, lastLine: string, su
 }
 
 // --- Agent takeover with Nova Sonic (AGENT_VOICE=sonic) ----------------------------------
-// Sonic talks with the caller over a two-way stream and handles the turn-taking. It only talks:
-// each caller reply goes to the Agent Lambda (Claude Haiku), which decides the verdict with the
-// same guards as before; the closing line is then said with speak(), like the <Say> path.
+// Sonic joins the call: it talks with the caller and the elder over two-way streams that the bridge
+// mixes, and handles the turn-taking. It only talks: each caller reply goes to the Agent Lambda
+// (Claude Haiku), which decides the verdict with the same guards as before.
 
-/** After this much quiet from both sides, the agent asks whether the caller is still there (twice at most). */
+/** After this much quiet from everyone, the agent asks whether the caller is still there (twice at most). */
 const QUIET_PROMPT_MS = 8000;
 const STILL_THERE = 'Hello? Are you still there?';
 const QUIET_GOODBYE = "I can't hear you, so I'm going to hang up now. Goodbye.";
-/** Sonic reports the caller's words in pieces; judge once they stop coming for this long. */
+/** Said to both when the caller is verified and the elder is still on the line. */
+const VERIFIED_LINE = "Thanks, that checks out. I'll let you two talk.";
+/** Said to the elder alone after the caller is hung up on. */
+const ELDER_SCAM_LINE = "That caller couldn't prove who they were, so I ended the call. Please don't call that number back.";
+const ELDER_QUIET_LINE = 'The caller went quiet, so I ended the call.';
+/** Transcribe reports the caller's words sentence by sentence; judge once they stop coming for this long. */
 const JUDGE_DELAY_MS = 700;
 
 /** The elder's settings, or the cdk.json persona. The verification answer is deliberately not read. */
@@ -550,8 +591,8 @@ async function persona(): Promise<SonicPersona> {
   }
 }
 
-/** Add a line Sonic heard or said to the transcript, and to Calls through IngestFn (the app shows agent lines). */
-function recordLine(call: Call, speaker: 'caller' | 'agent', text: string) {
+/** Add a line the agent said to the transcript, and to Calls through IngestFn (the app shows agent lines). */
+function recordLine(call: Call, speaker: 'agent', text: string) {
   const ts = Date.now();
   const seq = call.utterances.length;
   call.utterances.push({ callId: call.callSid, elderId: cfg.elderId, speaker, text, ts, seq });
@@ -564,21 +605,20 @@ async function startSonicTakeover(call: Call) {
   const opening = openingLine(p);
   const before = [...call.utterances];
   recordLine(call, 'agent', opening);
+  call.legs = { caller: newLeg(), elder: newLeg() };
   const t: SonicTakeover = {
     session: startSonic(cfg.region, sonicSystemPrompt(p, before), {
-      onAudio: (pcm) => playToCaller(t, pcm),
+      onAudio: (pcm) => playToCall(call, t, pcm),
       onText: (speaker, text) => onSonicText(call, t, speaker, text),
       onInterrupted: () => {
-        // The caller talked over the agent: drop what Twilio hasn't played yet.
-        if (t.ws && t.streamSid) t.ws.send(JSON.stringify({ event: 'clear', streamSid: t.streamSid }));
+        // Someone talked over the agent: drop what hasn't been played yet.
+        for (const leg of Object.values(call.legs ?? {})) leg.voice = Buffer.alloc(0);
         t.speakingUntil = Date.now();
       },
       onClosed: (err) => {
         if (!err || t.closing || call.sonic !== t) return;
         console.error('Nova Sonic failed, falling back to <Say>', err);
-        stopSonic(call, t);
-        call.sonic = undefined;
-        void agentTurn(call); // its redirect ends the two-way stream
+        sonicFailed(call, t);
       },
     }),
     agentText: '',
@@ -593,28 +633,50 @@ async function startSonicTakeover(call: Call) {
   };
   call.sonic = t;
   try {
-    if (DRY_RUN) {
-      log(call.callSid, 'would say', { text: opening, then: 'agent stream' });
-    } else {
-      // Opening line, then the two-way stream. Redirecting the caller here drops the elder's forwarded leg.
+    if (DRY_RUN) return log(call.callSid, 'would say', { text: opening, then: 'agent streams' });
+    const streamUrl = `${cfg.publicUrl.replace(/^http/, 'ws')}/agent`;
+    const twiml = (leg: 'caller' | 'elder') => agentStream({ opening, streamUrl, token: call.token, callSid: call.callSid, leg });
+    const url = (xml: string) => {
       const id = randomUUID();
-      const streamUrl = `${cfg.publicUrl.replace(/^http/, 'ws')}/agent`;
-      turns.set(id, agentStream({ opening, streamUrl, token: call.token, callSid: call.callSid }));
+      turns.set(id, xml);
       setTimeout(() => turns.delete(id), 60_000);
-      await tw.calls(call.callSid).update({ url: turnUrl(call, id) });
-    }
+      return turnUrl(call, id);
+    };
+    // The elder's leg of the forwarded call is a call of its own. Move it to the agent stream first:
+    // that ends the caller's <Dial> without hanging anyone up, and Twilio fetches the caller's next
+    // TwiML from the <Dial>'s action URL (/after), which is the same opening line and stream.
+    const [elder] = await tw.calls.list({ parentCallSid: call.callSid, status: 'in-progress', limit: 1 });
+    if (!elder) return void (await tw.calls(call.callSid).update({ url: url(twiml('caller')) })); // nobody to keep on the line
+    call.elderSid = elder.sid;
+    call.callerTwiml = twiml('caller');
+    await tw.calls(elder.sid).update({ url: url(twiml('elder')) });
+    setTimeout(() => {
+      // Twilio didn't ask for it: move the caller ourselves.
+      if (!call.callerTwiml || !calls.has(call.callSid)) return;
+      call.callerTwiml = undefined;
+      tw.calls(call.callSid).update({ url: url(twiml('caller')) }).catch((err) => console.error('moving the caller to the agent stream failed', err));
+    }, 2000);
   } catch (err) {
-    console.error('starting the agent stream failed, falling back to <Say>', err);
-    stopSonic(call, t);
-    call.sonic = undefined;
-    void agentTurn(call);
+    console.error('starting the agent streams failed, falling back to <Say>', err);
+    sonicFailed(call, t);
   }
 }
 
-/** Twilio's two-way stream for a takeover: the caller's audio in, the agent's voice out. */
+/** Fall back to the <Say> agent, which talks to the caller alone: the elder's leg ends, as it did before. */
+function sonicFailed(call: Call, t: SonicTakeover) {
+  stopSonic(call, t);
+  call.sonic = undefined;
+  const elder = call.legs?.elder.ws;
+  call.legs = undefined;
+  call.callerTwiml = undefined;
+  elder?.close();
+  void agentTurn(call); // its redirect ends the caller's two-way stream
+}
+
+/** A leg's two-way stream on the three-way call: that person's voice in, what they should hear out. */
 function onAgentStream(ws: WebSocket) {
   let call: Call | undefined;
-  let t: SonicTakeover | undefined;
+  let who: 'caller' | 'elder' = 'caller';
   ws.on('message', (raw) => {
     let m: TwilioMessage;
     try {
@@ -624,26 +686,66 @@ function onAgentStream(ws: WebSocket) {
     }
     if (m.event === 'start') {
       const c = calls.get(m.start?.customParameters?.callSid ?? m.start?.callSid ?? '');
-      if (!c?.sonic || m.start?.customParameters?.token !== c.token) {
+      if (!c?.legs || m.start?.customParameters?.token !== c.token) {
         console.warn('agent stream with unknown call or bad token, closing');
         return ws.close();
       }
       call = c;
-      t = c.sonic;
-      t.ws = ws;
-      t.streamSid = m.start?.streamSid ?? m.streamSid;
-      t.lastHeard = t.speakingUntil = Date.now(); // the opening line has just finished playing
-      log(c.callSid, 'agent stream started');
-    } else if (m.event === 'media' && t && m.media) {
-      t.session.push(mulawToPcm16(Buffer.from(m.media.payload, 'base64')));
+      who = m.start?.customParameters?.leg === 'elder' ? 'elder' : 'caller';
+      Object.assign(c.legs[who], newLeg(), { ws, streamSid: m.start?.streamSid ?? m.streamSid });
+      if (c.sonic) c.sonic.lastHeard = c.sonic.speakingUntil = Date.now(); // the opening line has just finished playing
+      log(c.callSid, 'agent stream started', { leg: who });
+    } else if (m.event === 'media' && call && m.media) {
+      onLegAudio(call, who, mulawToPcm16(Buffer.from(m.media.payload, 'base64')));
     }
   });
-  ws.on('close', () => call && t && log(call.callSid, 'agent stream closed', { closing: t.closing }));
+  ws.on('close', () => {
+    const leg = call?.legs?.[who];
+    if (!call || leg?.ws !== ws) return; // not on the three-way call (any more): we closed or moved it ourselves
+    leg.ws = undefined;
+    log(call.callSid, 'agent stream closed', { leg: who });
+    if (who === 'caller') return endCall(call.callSid, 'caller hung up');
+    if (call.sonic) return; // the elder hung up: the agent carries on with the caller
+    // The elder hung up after the agent stepped back: nobody is left for the caller to talk to.
+    if (DRY_RUN) return endCall(call.callSid, 'elder hung up');
+    tw.calls(call.callSid).update({ status: 'completed' }).catch((err) => console.error('ending the call failed', err));
+  });
 }
 
-function playToCaller(t: SonicTakeover, pcm: Buffer) {
-  if (t.closing || !t.ws || t.ws.readyState !== t.ws.OPEN || !t.streamSid) return;
-  t.ws.send(JSON.stringify({ event: 'media', streamSid: t.streamSid, media: { payload: Buffer.from(pcm16ToMulaw(pcm)).toString('base64') } }));
+/**
+ * The mixer. Twilio sends each leg a 20 ms frame of that person's voice, all the time, so a leg's own
+ * frames are the clock for what it hears back: the other person, plus the agent's voice.
+ */
+function onLegAudio(call: Call, who: 'caller' | 'elder', pcm: Buffer) {
+  if (!call.legs) return;
+  const mine = call.legs[who];
+  const theirs = call.legs[who === 'caller' ? 'elder' : 'caller'];
+  if (theirs.ws) {
+    theirs.other.push(pcm);
+    if (theirs.other.length > MAX_BACKLOG) theirs.other.shift();
+  }
+  const heard = mine.other.shift();
+  const voice = mine.voice.subarray(0, pcm.length);
+  mine.voice = mine.voice.subarray(voice.length);
+  if ((heard || voice.length) && mine.ws && mine.ws.readyState === mine.ws.OPEN && mine.streamSid) {
+    const payload = Buffer.from(pcm16ToMulaw(mixPcm16(pcm.length, heard, voice))).toString('base64');
+    mine.ws.send(JSON.stringify({ event: 'media', streamSid: mine.streamSid, media: { payload } }));
+  }
+  // Nova Sonic hears both people as one voice; the caller's frames are its clock while the caller is connected.
+  if (who === 'caller') call.sonic?.session.push(mixPcm16(pcm.length, pcm, heard));
+  else if (!call.legs.caller.ws) call.sonic?.session.push(pcm);
+  // Transcribe hears them apart (the monitoring stream's frames for this person are skipped meanwhile).
+  call.tracks[who]?.push(pcm, false);
+}
+
+/** Queue the agent's voice for everyone on the three-way call. */
+function playVoice(call: Call, pcm: Buffer) {
+  for (const leg of Object.values(call.legs ?? {})) if (leg.ws) leg.voice = Buffer.concat([leg.voice, pcm]);
+}
+
+function playToCall(call: Call, t: SonicTakeover, pcm: Buffer) {
+  if (t.closing) return;
+  playVoice(call, pcm);
   t.speakingUntil = Math.max(Date.now(), t.speakingUntil) + (pcm.length / 2 / 8000) * 1000;
 }
 
@@ -656,12 +758,11 @@ function onSonicText(call: Call, t: SonicTakeover, speaker: 'caller' | 'agent', 
     t.flushTimer = setTimeout(() => flushAgentText(call, t), 1500);
     return;
   }
+  // The caller or the elder spoke. Sonic can't tell them apart, so the words themselves are recorded
+  // from Transcribe (onSentence), which can.
   flushAgentText(call, t);
-  recordLine(call, 'caller', text.trim());
   t.lastHeard = Date.now();
   t.prompts = 0;
-  clearTimeout(t.judgeTimer);
-  t.judgeTimer = setTimeout(() => void judge(call, t), JUDGE_DELAY_MS);
 }
 
 function flushAgentText(call: Call, t: SonicTakeover) {
@@ -702,17 +803,14 @@ async function sonicTick(call: Call, t: SonicTakeover) {
     if (await elderTookCallBack(call)) {
       t.closing = true;
       stopSonic(call, t);
-      await handBack(call); // the redirect to the elder ends the two-way stream
-      t.ws?.close();
-      call.sonic = undefined;
-      return;
+      return await stepBack(call);
     }
-    if (!t.ws || Date.now() - Math.max(t.lastHeard, t.speakingUntil) < QUIET_PROMPT_MS) return;
+    if (!call.legs?.caller.ws || Date.now() - Math.max(t.lastHeard, t.speakingUntil) < QUIET_PROMPT_MS) return;
     if (t.prompts >= 2) return await closeSonicTakeover(call, t, 'caller_left', QUIET_GOODBYE, 'The caller went quiet after the takeover.');
     t.prompts++;
     flushAgentText(call, t);
     recordLine(call, 'agent', STILL_THERE);
-    playToCaller(t, await stillThere());
+    playToCall(call, t, await tts(STILL_THERE));
   } catch (err) {
     console.error('takeover check failed', err);
   } finally {
@@ -720,13 +818,18 @@ async function sonicTick(call: Call, t: SonicTakeover) {
   }
 }
 
-let stillThereAudio: Promise<Buffer> | undefined;
-/** "Are you still there?" in the agent's voice, as 8 kHz PCM (Sonic only speaks in reply to the caller). */
-function stillThere(): Promise<Buffer> {
-  stillThereAudio ??= polly
-    .send(new SynthesizeSpeechCommand({ Text: STILL_THERE, VoiceId: 'Matthew', Engine: 'neural', OutputFormat: 'pcm', SampleRate: '8000' }))
-    .then(async (r) => Buffer.from(await r.AudioStream!.transformToByteArray()));
-  return stillThereAudio;
+const spoken = new Map<string, Promise<Buffer>>();
+/** A scripted line in the agent's voice, as 8 kHz PCM (Sonic only speaks in reply to someone). */
+function tts(text: string): Promise<Buffer> {
+  let audio = spoken.get(text);
+  if (!audio) {
+    audio = polly
+      .send(new SynthesizeSpeechCommand({ Text: text, VoiceId: 'Matthew', Engine: 'neural', OutputFormat: 'pcm', SampleRate: '8000' }))
+      .then(async (r) => Buffer.from(await r.AudioStream!.transformToByteArray()));
+    spoken.set(text, audio);
+    audio.catch(() => spoken.delete(text));
+  }
+  return audio;
 }
 
 function stopSonic(call: Call, t: SonicTakeover) {
@@ -737,20 +840,59 @@ function stopSonic(call: Call, t: SonicTakeover) {
   log(call.callSid, 'Nova Sonic stopped');
 }
 
-/** A verdict is in: Sonic goes quiet, the closing line is said, and the call is handed back or ended. */
+/** "Let me talk": the agent goes quiet. The elder is still on the line; if their leg is gone, their phone rings again. */
+async function stepBack(call: Call) {
+  call.sonic = undefined;
+  if (call.legs?.elder.ws) {
+    call.agentStatus = 'stopped';
+    return log(call.callSid, 'elder took the call back; the agent stepped back');
+  }
+  const caller = call.legs?.caller.ws;
+  call.legs = undefined;
+  await handBack(call); // the redirect to the elder ends the caller's two-way stream
+  caller?.close();
+}
+
+/** A verdict is in: Sonic goes quiet, the closing line is said, and the agent steps back or the call is ended. */
 async function closeSonicTakeover(call: Call, t: SonicTakeover, status: AgentStatus, say: string, summary: string) {
   t.closing = true;
   stopSonic(call, t);
   flushAgentText(call, t);
-  if (say) recordLine(call, 'agent', say);
-  log(call.callSid, 'agent', { status, say, voice: 'sonic' });
+  // Save the verdict before the closing line: a caller who hangs up during it must not turn it into "caller left".
+  if (!(await setAgentStatus(call, 'active', status, summary))) return await stepBack(call); // "Let me talk" won
+  call.agentStatus = status;
+  texts.update(call.callSid, { agentStatus: status });
+  const together = status === 'verified' && Boolean(call.legs?.elder.ws);
+  const line = together ? VERIFIED_LINE : say;
+  if (line) recordLine(call, 'agent', line);
+  log(call.callSid, 'agent finished', { status, say: line, voice: 'sonic' });
   try {
-    // Ring the elder back (verified) or hang up. The redirect ends the two-way stream.
-    await speak(call, say, status === 'verified' ? 'handback' : 'hangup');
+    if (together) {
+      // The elder never left: the agent steps back and the two keep talking through the bridge.
+      call.sonic = undefined;
+      return playVoice(call, await tts(line));
+    }
+    const legs = call.legs;
+    call.legs = undefined;
+    if (legs?.elder.ws) {
+      // The caller is about to be hung up on: tell the elder why, then end their leg too.
+      const elderLine = status === 'scam_confirmed' ? ELDER_SCAM_LINE : ELDER_QUIET_LINE;
+      if (DRY_RUN || !call.elderSid) {
+        log(call.callSid, 'would say to the elder', { text: elderLine });
+        legs.elder.ws.close();
+      } else {
+        const id = randomUUID();
+        turns.set(id, sayAndHangUp(elderLine));
+        setTimeout(() => turns.delete(id), 60_000);
+        await tw.calls(call.elderSid).update({ url: turnUrl(call, id) }).catch((err) => (console.error('telling the elder failed', err), legs.elder.ws?.close()));
+      }
+    }
+    // The caller: the closing line, then hang up (or, verified with the elder gone, ring the elder back).
+    // The redirect ends the caller's two-way stream.
+    await speak(call, line, status === 'verified' ? 'handback' : 'hangup');
+    legs?.caller.ws?.close();
   } catch (err) {
     console.error('closing line failed', err);
   }
-  t.ws?.close();
-  await finishAgent(call, status, say, summary);
-  call.sonic = undefined; // only now: until then the monitoring stream's sentences are ignored
+  call.sonic = undefined; // only now: until then the caller's sentences don't start the <Say> agent
 }

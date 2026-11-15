@@ -5,9 +5,9 @@
 // The elder is often looking at the phone call, not the app, so only moments that change what
 // they should do get an alert:
 //   red         the call turned into a likely scam            (once per call)
-//   takeover    the agent took the call; their leg drops       (they might think it failed and call back)
+//   takeover    the agent joined the call; they stay on the line and hear it
 //   scam        the agent confirmed a scam and hung up
-//   verified    the caller passed the family question; their phone rings again
+//   verified    the caller passed the family question; the agent steps back
 //   ended       a yellow or red call ended (green calls end quietly)
 import type { AgentStatus, Exposure, Level } from '../../../contracts/index.js';
 import { exposureSentence } from '../../../contracts/exposures.js';
@@ -49,14 +49,14 @@ export function elderAlertsFor(before: AlertView | undefined, now: AlertView, ca
     if (now.agentStatus === 'active') {
       out.push({
         kind: 'takeover',
-        title: `${agentName} took over this call`,
-        body: `Your call was handed to ${agentName}, so it may have hung up on your side. Don't call this number back.`,
+        title: `${agentName} joined this call`,
+        body: `Stay on the line. ${agentName} is asking the caller a few questions. Don't send money, gift cards or codes.`,
         path: live,
       });
     } else if (b.agentStatus === 'active' && now.agentStatus === 'scam_confirmed') {
       out.push({ kind: 'scam', title: 'It was a scam', body: `${agentName} ended the call. Don't call this number back. Your family has been told.`, path: page });
     } else if (b.agentStatus === 'active' && now.agentStatus === 'verified') {
-      out.push({ kind: 'verified', title: 'The caller checked out', body: 'They answered the family question. Your phone will ring so you can keep talking.', path: live });
+      out.push({ kind: 'verified', title: 'The caller checked out', body: 'They answered the family question. You can keep talking.', path: live });
     }
   }
   const peak = worst(now.peak, now.level, b.peak, b.level);

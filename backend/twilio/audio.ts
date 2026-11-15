@@ -38,3 +38,14 @@ export function speechMs(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return 800 + words * 400; // ~150 words/min, plus Twilio's fetch of the announce TwiML
 }
+
+/** Adds 16-bit PCM buffers sample by sample into one of `bytes` length (clipped; a missing or short part is silence). */
+export function mixPcm16(bytes: number, ...parts: (Buffer | undefined)[]): Buffer {
+  const out = Buffer.alloc(bytes);
+  for (let i = 0; i + 1 < bytes; i += 2) {
+    let sum = 0;
+    for (const p of parts) if (p && i + 1 < p.length) sum += p.readInt16LE(i);
+    out.writeInt16LE(Math.max(-32768, Math.min(32767, sum)), i);
+  }
+  return out;
+}
