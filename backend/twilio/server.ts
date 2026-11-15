@@ -22,7 +22,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly';
 import { TranscribeStreamingClient } from '@aws-sdk/client-transcribe-streaming';
-import { fromIni } from '@aws-sdk/credential-providers';
+import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import twilio from 'twilio';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -46,11 +46,10 @@ const CALLER_SILENCE_MS = 25_000;
 
 const tw = twilio(cfg.accountSid, cfg.authToken);
 const lambda = new LambdaClient({ region: cfg.region });
-// TRANSCRIBE_PROFILE: use a different AWS profile for Transcribe only (e.g. when the account that runs
-// the backend has no Transcribe subscription). Everything else uses the default credential chain.
 const transcribe = new TranscribeStreamingClient({
   region: cfg.region,
-  ...(process.env.TRANSCRIBE_PROFILE ? { credentials: fromIni({ profile: process.env.TRANSCRIBE_PROFILE }) } : {}),
+  // Only Transcribe can come from another account (TRANSCRIBE_AWS_PROFILE); everything else uses the main one.
+  ...(cfg.transcribeProfile ? { credentials: defaultProvider({ profile: cfg.transcribeProfile }) } : {}),
 });
 const polly = new PollyClient({ region: cfg.region });
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: cfg.region }));
