@@ -107,7 +107,7 @@ describe('parseVerdict', () => {
     const p = parseVerdict(
       'Here: {"risk": 130, "tactics": ["urgency","made_up","urgency"], "reason": "x", "claimedRelative": true, "elderState": "sleepy"}',
     );
-    expect(p).toEqual({ risk: 100, tactics: ['urgency'], reason: 'x', claimedRelative: true, elderState: 'none' });
+    expect(p).toEqual({ risk: 100, tactics: ['urgency'], reason: 'x', claimedRelative: true, elderState: 'none', exposures: [] });
   });
   it('throws without JSON', () => {
     expect(() => parseVerdict('no json')).toThrow();

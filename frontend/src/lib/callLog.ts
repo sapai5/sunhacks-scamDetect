@@ -5,7 +5,8 @@
 // Phone-path calls (pushed over the socket) only carry risk results, not sentences, so their
 // entries have no transcript until the backend sends one.
 import { useEffect } from 'react';
-import type { AgentStatus, Level, RiskState, Tactic, Utterance } from '../../../contracts/index.js';
+import type { AgentStatus, Exposure, Level, RiskState, Tactic, Utterance } from '../../../contracts/index.js';
+import { detectExposures, mergeExposures } from '../../../contracts/exposures.js';
 import type { CallSnapshot, LoggedEvent, RiskPoint } from './snapshot';
 
 export interface CallLogEntry {
@@ -18,6 +19,8 @@ export interface CallLogEntry {
   peak: Level;
   risk: RiskState | null;
   tactics: Tactic[];
+  /** What the elder handed over during the call (never shrinks). Old entries may not have it. */
+  exposures?: Exposure[];
   familyAlerted: boolean;
   agentStatus: AgentStatus;
   transcript: Utterance[];
@@ -74,6 +77,8 @@ export function entryFor(s: CallSnapshot, prev?: CallLogEntry): CallLogEntry | n
     peak,
     risk: s.risk,
     tactics,
+    // The backend's list, plus the same rules run here so demo mode and the offline backup scorer get it too.
+    exposures: mergeExposures(prev?.exposures, s.risk?.exposures, detectExposures(s.transcript)),
     familyAlerted: Boolean(s.risk?.familyAlerted || prev?.familyAlerted),
     agentStatus: s.agentStatus,
     // Keep what we already had if this snapshot carries less (e.g. a phone call after a reload).

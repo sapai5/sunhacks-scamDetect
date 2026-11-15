@@ -9,6 +9,7 @@ import {
   type AgentStatus,
   type AnalyzeRequest,
   type ElderState,
+  type Exposure,
   type IngestRequest,
   type IngestRescore,
   type Level,
@@ -16,6 +17,7 @@ import {
   type Utterance,
   type Verification,
 } from '../../../contracts/index.js';
+import { mergeExposures } from '../../../contracts/exposures.js';
 
 export const WINDOW_MS = 60_000;
 const MAX_UTTERANCES = 400;
@@ -29,6 +31,8 @@ export interface ModelVerdict {
   reason: string;
   claimedRelative: boolean;
   elderState: ElderState;
+  /** What the elder handed over in the window. Optional: the backup rules leave it to exposures.ts. */
+  exposures?: Exposure[];
 }
 
 export interface Decision {
@@ -136,6 +140,7 @@ export function parseVerdict(text: string): ModelVerdict {
     reason: typeof raw.reason === 'string' ? raw.reason.slice(0, 300) : '',
     claimedRelative: raw.claimedRelative === true,
     elderState,
+    exposures: mergeExposures(Array.isArray(raw.exposures) ? (raw.exposures as string[]) : []),
   };
 }
 
@@ -186,6 +191,7 @@ export function parseRequest(body: unknown): AnalyzeRequest {
     agentStatus: oneOf<AgentStatus>(AGENT_STATUSES, b.agentStatus, 'idle'),
     familyAlerted: b.familyAlerted === true,
     calmStreak: Number.isInteger(b.calmStreak) ? Math.max(0, Math.min(10, Number(b.calmStreak))) : 0,
+    exposures: mergeExposures(Array.isArray(b.exposures) ? (b.exposures as string[]) : []),
   };
 }
 

@@ -32,6 +32,24 @@ export type Verification = (typeof VERIFICATIONS)[number];
 export const ELDER_STATES = ['none', 'engaging', 'complying'] as const;
 export type ElderState = (typeof ELDER_STATES)[number];
 
+/**
+ * What the ELDER actually handed over on the call (not what the caller asked for: that's a Tactic).
+ * Drives the "what to do now" steps after the call (contracts/exposures.ts). Only the category is
+ * kept, never the digits.
+ */
+export const EXPOSURES = [
+  'card_number',
+  'bank_account',
+  'ssn',
+  'medicare_number',
+  'one_time_code',
+  'password',
+  'remote_access',
+  'gift_cards',
+  'money_sent',
+] as const;
+export type Exposure = (typeof EXPOSURES)[number];
+
 /** Where the takeover agent is in its job. */
 export const AGENT_STATUSES = ['idle', 'active', 'verified', 'scam_confirmed', 'caller_left', 'stopped'] as const;
 export type AgentStatus = (typeof AGENT_STATUSES)[number];
@@ -64,6 +82,8 @@ export interface AnalyzeRequest {
   verification: Verification;
   familyAlerted: boolean;
   agentStatus: AgentStatus;
+  /** What the elder already handed over earlier in the call (from the last RiskState). Exposures only grow. */
+  exposures?: Exposure[];
 }
 
 /** Risk state (Analyze Lambda -> app). */
@@ -82,6 +102,8 @@ export interface RiskState {
   verificationQuestion?: string;
   /** True if this response sent the family alert. */
   familyAlerted: boolean;
+  /** Everything the elder has handed over so far this call (never shrinks). Missing = none. */
+  exposures?: Exposure[];
 }
 
 /**

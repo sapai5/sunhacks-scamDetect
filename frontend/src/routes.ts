@@ -16,6 +16,7 @@ import E7Takeover from './screens/elder/E7Takeover';
 import E8CallLog from './screens/elder/E8CallLog';
 import E9CallDetail from './screens/elder/E9CallDetail';
 import E10Settings from './screens/elder/E10Settings';
+import E11WhatNext from './screens/elder/E11WhatNext';
 import { SETTINGS, SettingsFamilyRoute, SettingsQuestionRoute } from './flow/settingsRoutes';
 import F1SmsAlert from './screens/family/F1SmsAlert';
 import F2CallSummary from './screens/family/F2CallSummary';
@@ -54,6 +55,7 @@ export const SCREENS: ScreenRoute[] = [
   { id: 'E6', title: 'Call ended summary', path: FLOW.summary, section: 'Elder (smartphone)', layout: 'phone', component: SummaryRoute },
   { id: 'E8', title: 'Past calls', path: '/elder/calls', section: 'Elder (smartphone)', layout: 'phone', component: E8CallLog },
   { id: 'E9', title: 'Call transcript', path: '/elder/call', section: 'Elder (smartphone)', layout: 'phone', component: E9CallDetail },
+  { id: 'E11', title: 'What to do now (preview)', path: '/elder/what-next', section: 'Elder (smartphone)', layout: 'phone', component: E11WhatNext },
   { id: 'E10', title: 'Settings', path: SETTINGS.home, section: 'Elder (smartphone)', layout: 'phone', component: E10Settings },
   { id: 'E10a', title: 'Settings: family', path: SETTINGS.family, section: 'Elder (smartphone)', layout: 'phone', component: SettingsFamilyRoute, inGallery: false },
   { id: 'E10b', title: 'Settings: question', path: SETTINGS.question, section: 'Elder (smartphone)', layout: 'phone', component: SettingsQuestionRoute, inGallery: false },

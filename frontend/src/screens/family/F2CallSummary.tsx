@@ -2,6 +2,8 @@
 // No call storage or read endpoint yet: shows the call from this browser (or sample data).
 import { Transcript, StageTracker } from '../../components/Dashboard';
 import { BigButton, RiskLight } from '../../components/Risk';
+import { WhatNext } from '../../components/WhatNext';
+import { detectExposures, exposureSentence, mergeExposures } from '../../../../contracts/exposures.js';
 import { SNAPSHOT_DONE } from '../../lib/fixtures';
 import type { CallSnapshot } from '../../lib/snapshot';
 import { stagesOf } from '../../lib/stages';
@@ -24,6 +26,7 @@ export default function F2CallSummary({ call = SNAPSHOT_DONE, elderName = 'Mom',
   const risk = call.risk;
   const level = risk?.level ?? 'green';
   const kind = risk?.claimedRelative ? 'grandchild impersonation' : HEADLINE[risk?.tactics[0] ?? ''] ?? 'suspicious call';
+  const exposures = level === 'green' ? [] : mergeExposures(risk?.exposures, detectExposures(call.transcript));
   const time = call.startedAt ? new Date(call.startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
   // Show the lines that pushed risk up the most (Figma shows two).
   const hot = new Set(
@@ -41,6 +44,14 @@ export default function F2CallSummary({ call = SNAPSHOT_DONE, elderName = 'Mom',
         </span>
       </div>
       <h1 className="screen-heading">{level === 'red' ? `Likely scam: ${kind}` : level === 'yellow' ? `Warning signs: ${kind}` : 'Call looked safe'}</h1>
+      {exposures.length > 0 && (
+        <>
+          <p className="screen-lede">
+            {elderName} may have given the caller {exposureSentence(exposures, 'their')}. Help them through these steps.
+          </p>
+          <WhatNext callId={call.callId} exposures={exposures} readOnly />
+        </>
+      )}
       <StageTracker hit={stagesOf(risk?.tactics ?? [])} />
       <Transcript utterances={call.transcript.filter((u) => hot.has(u.seq))} history={call.history} startedAt={call.startedAt ?? 0} />
       <BigButton kind="primary" href={elderPhone ? `tel:${elderPhone}` : undefined}>

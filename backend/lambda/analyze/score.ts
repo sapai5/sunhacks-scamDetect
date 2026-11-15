@@ -2,6 +2,7 @@
 // last ~60 s -> Bedrock -> level rules, plus the family alert.
 import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { AnalyzeRequest, ElderSettings, RiskState } from '../../../contracts/index.js';
+import { detectExposures, exposureSentence, mergeExposures } from '../../../contracts/exposures.js';
 import { askClaude } from '../shared/bedrock.js';
 import { buildUserMessage, SYSTEM_PROMPT } from './prompt.js';
 import { decide, parseVerdict, recentWindow, type ModelVerdict } from './rules.js';
@@ -37,6 +38,8 @@ export async function score(
     elderState: v.elderState,
     verificationQuestion: d.action === 'ask_verification' ? elder.verificationQuestion : undefined,
     familyAlerted: false,
+    // What the elder handed over: earlier results, the model (last ~60 s) and the rules (whole call).
+    exposures: mergeExposures(req.exposures, v.exposures, detectExposures(req.utterances)),
   };
   return { state, shouldAlert: d.shouldAlert, bedrockMs };
 }
@@ -50,6 +53,7 @@ export async function alertFamily(elder: ElderSettings, req: AnalyzeRequest, s: 
   const message =
     `Scam Shield: ${elder.elderName} is on a likely scam call and is starting to go along with it. ` +
     `Signs: ${s.tactics.join(', ').replaceAll('_', ' ')}. ${s.reason} ` +
+    (s.exposures?.length ? `They may already have given the caller ${exposureSentence(s.exposures, 'their')}. ` : '') +
     `Last words: ${lastLines} Please call them now.`;
   await sns.send(
     new PublishCommand({
