@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#111827"/><circle cx="256" cy="256" r="150" fill="#fee2e2"/><circle cx="256" cy="256" r="110" fill="#16a34a"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Call Me Maybe... Not">
+  <!-- A hung-up handset over the name's ellipsis: listening, listening, scam. -->
+  <rect width="512" height="512" rx="112" fill="#111827"/>
+  <g fill="#f9fafb">
+    <path d="M116.7 222.5A170 170 0 0 1 395.3 222.5" fill="none" stroke="#f9fafb" stroke-width="52"/>
+    <rect x="218" y="124" width="76" height="88" rx="18" transform="rotate(-55 256 320)"/>
+    <rect x="218" y="124" width="76" height="88" rx="18" transform="rotate(55 256 320)"/>
+  </g>
+  <circle cx="176" cy="372" r="30" fill="#6b7280"/>
+  <circle cx="256" cy="372" r="30" fill="#6b7280"/>
+  <circle cx="336" cy="372" r="30" fill="#f87171"/>
+</svg>
