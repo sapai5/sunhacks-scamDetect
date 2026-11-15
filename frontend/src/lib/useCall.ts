@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { AgentStatus, PushMessage, RiskState, Utterance, Verification } from '../../../contracts/index.js';
 import { TEST_SCRIPTS } from '../../../backend/scripts/test-scripts.js';
-import { agentTurn, analyze, stopPhoneAgent } from './api';
+import { agentTurn, analyze, sendToPhoneCall } from './api';
 import { elderView, pushedStateEffect } from './callState';
 import type { CallSnapshot, RiskPoint } from './snapshot';
 import { speak, stopSpeaking, unlockSpeech } from './speech';
@@ -333,6 +333,13 @@ export function useCall() {
       const r = s.current;
       r.verification = v;
       setVerification(v);
+      // Phone call: the server scores it, so send the answer there (it re-scores right away).
+      if (r.phone) {
+        if (v !== 'unasked' && !sendToPhoneCall({ action: 'verification', callId: r.callId, result: v })) {
+          setStatus("Couldn't reach the server; your answer wasn't saved.");
+        }
+        return;
+      }
       const note = v === 'failed' ? 'wrong answer to family question' : 'family question answered';
       if (r.utterances.length) r.inFlight = r.inFlight.then(() => runAnalyze(note));
     },
@@ -342,7 +349,9 @@ export function useCall() {
   /** Elder taps "Let me talk": the agent stops and won't take over again this call. */
   const takeBack = useCallback(() => {
     // Phone call: the agent runs on the server, so tell it to stop.
-    if (s.current.phone && !stopPhoneAgent(s.current.callId)) setStatus("Couldn't reach the server; the helper may keep talking.");
+    if (s.current.phone && !sendToPhoneCall({ action: 'stopAgent', callId: s.current.callId })) {
+      setStatus("Couldn't reach the server; the helper may keep talking.");
+    }
     finishAgent('stopped', '');
   }, [finishAgent]);
 

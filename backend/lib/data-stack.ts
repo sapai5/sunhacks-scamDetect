@@ -116,12 +116,14 @@ export class DataStack extends cdk.Stack {
     this.ingestFn = ingestFn;
 
     // --- B4: push. $connect registers the socket on the elder; the Calls stream sends each change the
-    // app shows; $default takes "Let me talk" (stopAgent) from the app.
+    // app shows; $default takes "Let me talk" and the Checking screen's answer from the app.
     const pushFn = fn('PushFn', 'push', {
       ELDERS_TABLE: elders.tableName,
       CALLS_TABLE: calls.tableName,
+      INGEST_FN: ingestFn.functionName,
       ALLOWED_ORIGINS: props.webOrigins.join(','),
     });
+    ingestFn.grantInvoke(pushFn); // rescore after the elder answers the family question
     const pushApi = new apigwv2.WebSocketApi(this, 'PushApi', {
       connectRouteOptions: { integration: new WebSocketLambdaIntegration('PushConnect', pushFn) },
       defaultRouteOptions: { integration: new WebSocketLambdaIntegration('PushDefault', pushFn) },

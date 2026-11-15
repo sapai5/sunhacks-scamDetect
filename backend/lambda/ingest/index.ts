@@ -10,9 +10,9 @@
 //   app's "Let me talk" sets active -> stopped   (push Lambda; the front end checks before speaking)
 //   front end sets active -> final status        (verified / scam_confirmed / caller_left)
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
-import { UpdateCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
-import type { AgentStatus, AnalyzeRequest, RiskState, Utterance, Verification } from '../../../contracts/index.js';
-import { parseIngest } from '../analyze/rules.js';
+import { GetCommand, UpdateCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
+import type { AgentStatus, AnalyzeRequest, IngestRequest, RiskState, Utterance, Verification } from '../../../contracts/index.js';
+import { parseIngest, parseRescore } from '../analyze/rules.js';
 import { alertFamily, score } from '../analyze/score.js';
 import { ddb, loadElder } from '../shared/db.js';
 
@@ -49,17 +49,13 @@ async function update(input: Omit<UpdateCommandInput, 'TableName'>): Promise<boo
   }
 }
 
-export const handler = async (event: unknown): Promise<RiskState | null> => {
-  const started = Date.now();
-  const req = parseIngest(event);
-  const Key = { callId: req.callId };
-
-  // 1. Append the sentence. ALL_NEW returns the call with this sentence last.
+/** 1. Append the sentence. ALL_NEW returns the call with this sentence last. */
+async function append(req: IngestRequest): Promise<CallItem> {
   // ponytail: the whole transcript is one item (400 KB, about 2,000 sentences); trim it if calls run longer.
   const { Attributes } = await ddb.send(
     new UpdateCommand({
       TableName: CALLS_TABLE,
-      Key,
+      Key: { callId: req.callId },
       UpdateExpression:
         'SET utterances = list_append(if_not_exists(utterances, :none), :u), elderId = if_not_exists(elderId, :e), ' +
         'verification = if_not_exists(verification, :unasked), agentStatus = if_not_exists(agentStatus, :idle), ' +
@@ -76,10 +72,22 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
       ReturnValues: 'ALL_NEW',
     }),
   );
-  const call = Attributes as CallItem;
+  return Attributes as CallItem;
+}
+
+export const handler = async (event: unknown): Promise<RiskState | null> => {
+  const started = Date.now();
+  // A rescore (push Lambda: the elder answered the family question) scores the stored transcript again.
+  const rescore = parseRescore(event);
+  const req = rescore ? undefined : parseIngest(event);
+  const call = req
+    ? await append(req)
+    : ((await ddb.send(new GetCommand({ TableName: CALLS_TABLE, Key: { callId: rescore!.callId } }))).Item as CallItem | undefined);
+  if (!call?.utterances?.length) return null;
+  const Key = { callId: call.callId };
   const seq = call.utterances.length - 1;
   // The agent's own lines are only recorded, and nothing is scored while it has the call (like the browser).
-  if (req.speaker === 'agent' || call.agentStatus === 'active') return null;
+  if (req?.speaker === 'agent' || call.agentStatus === 'active') return null;
 
   // 2. Same scoring as the Analyze Lambda, with the stored state in place of the browser's.
   const areq: AnalyzeRequest = {
@@ -108,19 +116,21 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
     }
   }
 
-  // 4. Save, unless a later sentence was already scored. agentStatus is the front end's to change.
-  // ponytail: overlapping sentences are scored from the same previous state; SQS FIFO per callId (Stage 3) serializes them.
+  // 4. Save, unless a later sentence was already scored (the same one may be: a rescore). agentStatus is the front end's.
+  // ponytail: overlapping scores of the same sentence (it and a rescore) finish in any order, so a rescore can
+  // occasionally lose to the score it replaces until the next sentence; SQS FIFO per callId (Stage 3) serializes them.
   const saved = await update({
     Key,
     UpdateExpression: 'SET #state = :s, analyzedSeq = :seq',
-    ConditionExpression: 'attribute_not_exists(analyzedSeq) OR analyzedSeq < :seq',
+    ConditionExpression: 'attribute_not_exists(analyzedSeq) OR analyzedSeq <= :seq',
     ExpressionAttributeNames: { '#state': 'state' },
     ExpressionAttributeValues: { ':s': state, ':seq': seq },
   });
 
   console.log(
     JSON.stringify({
-      callId: req.callId,
+      callId: call.callId,
+      rescore: Boolean(rescore),
       seq,
       level: state.level,
       risk: state.risk,
