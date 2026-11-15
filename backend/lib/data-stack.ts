@@ -6,6 +6,7 @@ import { Construct } from 'constructs';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -122,7 +123,16 @@ export class DataStack extends cdk.Stack {
       CALLS_TABLE: calls.tableName,
       INGEST_FN: ingestFn.functionName,
       ALLOWED_ORIGINS: props.webOrigins.join(','),
+      // Web Push: VAPID keys in SSM (made on first use), the app's URL as the VAPID subject.
+      VAPID_PARAM: '/scamshield/vapid',
+      WEB_URL: props.webOrigins[0] ?? '',
     });
+    pushFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['ssm:GetParameter', 'ssm:PutParameter'],
+        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/scamshield/vapid`],
+      }),
+    );
     ingestFn.grantInvoke(pushFn); // rescore after the elder answers the family question
     const pushApi = new apigwv2.WebSocketApi(this, 'PushApi', {
       connectRouteOptions: { integration: new WebSocketLambdaIntegration('PushConnect', pushFn) },

@@ -119,6 +119,8 @@ export function listenForPhoneCalls(elderId: string, onMessage: (m: PushMessage)
   let closed = false;
   const open = () => {
     const ws = (pushSocket = new WebSocket(`${PUSH_URL}?elderId=${encodeURIComponent(elderId)}`));
+    // Ask for the call in progress (or just ended), so an app opened from a call alert shows it at once.
+    ws.onopen = () => ws.send(JSON.stringify({ action: 'current', elderId }));
     ws.onmessage = (e) => {
       let m: PushMessage;
       try {

@@ -1,0 +1,69 @@
+/* AlertsCard.tsx: call alerts (Web Push). Same card language as the install hint. */
+.alerts-card {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: var(--radius-card);
+  background: var(--color-verify-tint);
+  color: var(--color-on-verify);
+  text-align: left;
+}
+.alerts-card[data-state='on'] { background: var(--color-safe-tint); color: var(--color-on-safe); }
+.alerts-card[data-state='blocked'],
+.alerts-card[data-state='unsupported'] { background: var(--color-surface); color: var(--color-text); }
+
+.alerts-card__icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-top: 2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.alerts-card__text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.alerts-card p { margin: 0; }
+.alerts-card__title { font-size: 19px; font-weight: 600; }
+.alerts-card__body { font-size: 16px; line-height: 23px; }
+.alerts-card__error { font-size: 15px; color: var(--color-danger); }
+.alerts-card__row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+.alerts-card__button {
+  align-self: flex-start;
+  margin-top: 6px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-verify);
+  color: var(--color-on-strong);
+  font: 600 18px var(--font-sans);
+  cursor: pointer;
+}
+.alerts-card__button--quiet {
+  background: transparent;
+  color: currentColor;
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+.alerts-card__button:disabled { opacity: 0.6; cursor: progress; }
+.alerts-card__button:focus-visible,
+.alerts-card__link:focus-visible { outline: 3px solid var(--color-text); outline-offset: 3px; }
+.alerts-card__link {
+  margin-top: 6px;
+  border: 0;
+  background: none;
+  padding: 10px 4px;
+  font: 500 17px var(--font-sans);
+  color: currentColor;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .alerts-card__button { transition: transform 140ms ease; }
+  .alerts-card__button:active:not(:disabled) { transform: scale(0.97); }
+}

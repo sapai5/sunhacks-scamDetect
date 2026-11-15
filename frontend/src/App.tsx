@@ -1,4 +1,5 @@
-import { Route, Routes } from 'react-router';
+import { useEffect } from 'react';
+import { Route, Routes, useNavigate } from 'react-router';
 import { StartRoute } from './flow/routes';
 import { TabBar } from './components/TabBar';
 import { CallProvider, useCallContext } from './lib/CallContext';
@@ -13,10 +14,25 @@ function CallLogRecorder() {
   return null;
 }
 
+/** A tapped call alert (sw.ts) opens its screen in place, so a running call isn't reloaded. */
+function NotificationRouter() {
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (e: MessageEvent<{ type?: string; path?: string }>) => {
+      if (e.data?.type === 'open' && typeof e.data.path === 'string' && e.data.path.startsWith('/')) nav(e.data.path);
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [nav]);
+  return null;
+}
+
 export default function App() {
   return (
     <CallProvider>
       <CallLogRecorder />
+      <NotificationRouter />
       <Routes>
         <Route path="/" element={<StartRoute />} />
         <Route path="/schematic" element={<Schematic />} />

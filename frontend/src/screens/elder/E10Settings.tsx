@@ -1,5 +1,6 @@
 // E10 Settings (not in Figma yet). Change what onboarding set up, any time.
 import { Link } from 'react-router';
+import { AlertsCard } from '../../components/AlertsCard';
 import { InstallHint } from '../../components/InstallHint';
 import { loadSettings } from '../../lib/settings';
 import './callLog.css';
@@ -34,6 +35,7 @@ export default function E10Settings() {
           </Link>
         </li>
       </ul>
+      <AlertsCard variant="settings" />
       <InstallHint />
       <p className="screen-note">Your settings and past calls are kept on this phone.</p>
     </div>

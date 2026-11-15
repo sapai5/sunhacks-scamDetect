@@ -42,6 +42,8 @@ export interface BridgeConfig {
   /** LOCAL_BACKEND=1: run the IngestFn and Agent Lambda code in the bridge (see local-backend.ts). */
   localBackend: boolean;
   familyTopicArn: string;
+  /** The web app (Amplify), for the links in texts to the elder. */
+  webUrl: string;
 }
 
 async function outputs(cf: CloudFormationClient, stack: string): Promise<Record<string, string>> {
@@ -84,5 +86,6 @@ export async function loadConfig(): Promise<BridgeConfig> {
       agentRelation: ctx.agentRelation,
       verificationQuestion: ctx.verificationQuestion,
     },
+    webUrl: process.env.WEB_URL ?? stage1.WebUrl,
   };
 }

@@ -214,5 +214,34 @@ export interface PushVerification {
   result: 'passed' | 'failed';
 }
 
+/** App -> push socket, right after connecting: send me the elder's current call (if one is live or just ended). */
+export interface PushCurrent {
+  action: 'current';
+  elderId: string;
+}
+
+/** App -> push socket: what key to subscribe to Web Push with. Answered with a PushVapidKeyReply. */
+export interface PushVapidKey {
+  action: 'vapidKey';
+}
+
+/** Push socket -> app: the Web Push application server key (base64url). */
+export interface PushVapidKeyReply {
+  vapidKey: string;
+}
+
+/** A browser PushSubscription as JSON (PushSubscription.toJSON()). */
+export interface WebPushSubscription {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/** App -> push socket: alert this elder on this device (Web Push), or stop. */
+export interface PushSubscribe {
+  action: 'subscribePush' | 'unsubscribePush';
+  elderId: string;
+  subscription: WebPushSubscription;
+}
+
 /** Everything the app sends on the push socket. */
-export type PushAppMessage = PushStopAgent | PushVerification;
+export type PushAppMessage = PushStopAgent | PushVerification | PushCurrent | PushVapidKey | PushSubscribe;

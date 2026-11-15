@@ -2,6 +2,7 @@
 // The Figma frame has no buttons; "Start listening" and the demo scripts are added so the demo can start a call.
 // Phone path (phoneProtected): calls to the ScamDetermine number open the live screen by themselves,
 // so the screen says that, and the speakerphone button and demos move under "Practice".
+import { AlertsCard } from '../../components/AlertsCard';
 import { InstallHint } from '../../components/InstallHint';
 import { BigButton, RiskLight } from '../../components/Risk';
 import { PHONE_PATH } from '../../lib/phonePath';
@@ -44,6 +45,7 @@ export default function E1Idle({ familyCount = 3, scripts = [], micAvailable, on
     return (
       <div className="screen-center">
         <InstallHint />
+        <AlertsCard />
         <RiskLight state="green" size="badge" label="Protected" />
         <h1 className="screen-title">You're protected</h1>
         <p className="screen-lede">Calls from numbers you don't know are checked while you talk. This screen changes by itself when one comes in.</p>
