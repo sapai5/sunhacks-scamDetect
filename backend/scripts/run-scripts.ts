@@ -44,7 +44,7 @@ for (const script of TEST_SCRIPTS.filter((s) => !only || s.name === only)) {
     if (rank[s.level] > rank[peak]) peak = s.level;
     if (s.action === 'ask_verification' && script.verificationAnswer) verification = script.verificationAnswer;
     console.log(
-      `  ${i}: ${s.level.padEnd(6)} risk=${String(s.risk).padStart(3)} ${ms}ms [${s.tactics.join(',')}] ${s.action}${s.familyAlerted ? ' SMS' : ''}  "${text.slice(0, 50)}"`,
+      `  ${i}: ${s.level.padEnd(6)} risk=${String(s.risk).padStart(3)} ${ms}ms [${s.tactics.join(',')}] ${s.action}${s.familyAlerted ? ' ALERT SENT' : ''}  "${text.slice(0, 50)}"`,
     );
   }
   const ok = peak === script.expectedPeak;
