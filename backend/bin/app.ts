@@ -46,9 +46,14 @@ new DataStack(app, 'ScamShieldData', {
 // The Twilio bridge on Fargate (replaces the laptop + tunnel). Deploy with
 // `npx cdk deploy ScamShieldBridge` after creating its secret (scripts/bridge-secret.ts).
 // Optional: -c transcribeRoleArn=arn:aws:iam::<other account>:role/... to run Transcribe elsewhere.
+// The role ARN can also live in the gitignored local.config.json ("transcribeRoleArn"), so redeploys keep it.
+const localConfigPath = new URL('../local.config.json', import.meta.url);
+const localTranscribeRole = existsSync(localConfigPath)
+  ? (JSON.parse(readFileSync(localConfigPath, 'utf8')) as { transcribeRoleArn?: string }).transcribeRoleArn
+  : undefined;
 new BridgeStack(app, 'ScamShieldBridge', {
   env,
-  transcribeRoleArn: ctx('transcribeRoleArn') || undefined,
+  transcribeRoleArn: ctx('transcribeRoleArn') || localTranscribeRole || undefined,
 });
 
 // Stage 2 (Track A). Real phone numbers live in backend/local.config.json, which is gitignored
