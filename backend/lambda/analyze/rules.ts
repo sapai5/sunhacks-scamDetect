@@ -192,7 +192,9 @@ export function parseRequest(body: unknown): AnalyzeRequest {
 export function parseIngest(body: unknown): IngestRequest {
   if (!body || typeof body !== 'object') throw new BadRequest('event must be an IngestRequest object');
   const b = body as Record<string, unknown>;
-  if (b.speaker !== 'caller' && b.speaker !== 'elder') throw new BadRequest('speaker must be "caller" or "elder"');
+  if (b.speaker !== 'caller' && b.speaker !== 'elder' && b.speaker !== 'agent') {
+    throw new BadRequest('speaker must be "caller", "elder" or "agent"');
+  }
   const [u] = parseUtterances({ ...b, utterances: [b] }).utterances;
   if (!u.text.trim()) throw new BadRequest('text must not be empty');
   return { ...u, speaker: b.speaker };

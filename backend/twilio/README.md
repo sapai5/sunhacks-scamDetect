@@ -6,7 +6,10 @@ caller ──> Twilio number ──POST /voice──> this server
    unknown caller  → both audio tracks stream to /media, caller + elder join one conference
 /media  → mu-law → PCM → Amazon Transcribe (caller track, elder track)
         → each sentence → IngestFn (Track B) → RiskState in Calls → pushed to the app
-agent_takeover → Agent Lambda → line spoken into the conference (Twilio <Say>, Polly voice)
+agent_takeover → Calls.agentStatus = active (scoring pauses, the app shows the takeover screen)
+               → Agent Lambda → line spoken into the conference (Twilio <Say>, Polly voice)
+               → the line goes to IngestFn as speaker 'agent' (the app shows it)
+"Let me talk"  → the app sets Calls.agentStatus = stopped → the bridge checks before each line and goes quiet
 scam confirmed → goodbye, then the call is ended for everyone
 ```
 
@@ -57,4 +60,4 @@ Upgrading removes them (paid to Twilio; AWS credits don't cover it).
 - That the conference announcement plays to both sides as expected, and how long Twilio takes to
   start it (the mic is muted on the elder track for an estimate of the speaking time).
 - The trial "press any key" prompt on the elder's leg before the conference.
-- The elder can't take the call back from the agent ("Let me talk") on the phone path yet.
+- "Let me talk" stops the agent before its next line; a line it's already saying plays to the end.

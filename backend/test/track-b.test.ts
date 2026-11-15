@@ -25,6 +25,10 @@ describe('parseIngest', () => {
     expect(r.ts).toBeGreaterThan(0);
   });
 
+  it("accepts the agent's own lines (recorded, never scored)", () => {
+    expect(parseIngest({ callId: 'c', elderId: 'e', speaker: 'agent', text: 'Hi, this is Mike.' }).speaker).toBe('agent');
+  });
+
   it('rejects other speakers, empty text and missing ids', () => {
     expect(() => parseIngest({ callId: 'c', elderId: 'e', speaker: 'spk_0', text: 'x' })).toThrow(BadRequest);
     expect(() => parseIngest({ callId: 'c', elderId: 'e', speaker: 'elder', text: '  ' })).toThrow(BadRequest);

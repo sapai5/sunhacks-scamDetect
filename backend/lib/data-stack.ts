@@ -6,7 +6,6 @@ import { Construct } from 'constructs';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -26,16 +25,11 @@ export interface DataStackProps extends cdk.StackProps {
   webOrigins: string[];
   /** First settings for the demo elder, from cdk.json. Written once, when the table is created. */
   seed: ElderSettings;
-  /**
-   * Track A's Lambda (name or ARN) that speaks a line into a live phone call, invoked with
-   * { callId, text }. Unset: phone calls get no agent. 'log': dry run, the agent runs but nothing is heard.
-   */
-  phoneSpeakFn?: string;
 }
 
 /**
  * Track B: call state, settings, push.
- * Elders + Calls tables, Settings API, IngestFn (server-side analyze and phone agent),
+ * Elders + Calls tables, Settings API, IngestFn (server-side analyze for the phone path),
  * and a WebSocket API that pushes each call's RiskState and agent progress from the Calls stream to the app.
  */
 export class DataStack extends cdk.Stack {
@@ -103,7 +97,7 @@ export class DataStack extends cdk.Stack {
       },
     });
 
-    // --- B3: IngestFn. Direct invoke only, no URL. Also runs the phone agent once phoneSpeakFn is set.
+    // --- B3: IngestFn. Direct invoke only, no URL.
     const ingestFn = fn(
       'IngestFn',
       'ingest',
@@ -112,7 +106,6 @@ export class DataStack extends cdk.Stack {
         FAMILY_TOPIC_ARN: props.familyTopic.topicArn,
         ELDERS_TABLE: elders.tableName,
         CALLS_TABLE: calls.tableName,
-        ...(props.phoneSpeakFn ? { PHONE_SPEAK_FN: props.phoneSpeakFn } : {}),
       },
       512,
     );
@@ -120,12 +113,6 @@ export class DataStack extends cdk.Stack {
     props.familyTopic.grantPublish(ingestFn);
     elders.grant(ingestFn, 'dynamodb:GetItem');
     calls.grantReadWriteData(ingestFn);
-    if (props.phoneSpeakFn && props.phoneSpeakFn !== 'log') {
-      const arn = props.phoneSpeakFn.startsWith('arn:')
-        ? props.phoneSpeakFn
-        : `arn:aws:lambda:${this.region}:${this.account}:function:${props.phoneSpeakFn}`;
-      ingestFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['lambda:InvokeFunction'], resources: [arn] }));
-    }
     this.ingestFn = ingestFn;
 
     // --- B4: push. $connect registers the socket on the elder; the Calls stream sends each change the
