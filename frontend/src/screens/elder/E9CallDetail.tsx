@@ -5,7 +5,10 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { EventTimeline } from '../../components/CallEvents';
 import { StageTracker, Transcript } from '../../components/Dashboard';
 import { RiskLight, TextButton } from '../../components/Risk';
+import { SharedPicker, sharedTitle, useWhatWasShared, WhatNext } from '../../components/WhatNext';
+import { detectExposures, mergeExposures } from '../../../../contracts/exposures.js';
 import { deleteCall, getCall, type CallLogEntry } from '../../lib/callLog';
+import { loadSettings } from '../../lib/settings';
 import { stagesOf } from '../../lib/stages';
 import { duration, HEADLINE, when } from './E8CallLog';
 import './callLog.css';
@@ -26,6 +29,9 @@ export default function E9CallDetail({ entry }: { entry?: CallLogEntry }) {
       clearTimeout(stop);
     };
   }, [call, id]);
+  // What the caller got: heard on the call (older calls: worked out from the saved words) plus what the elder taps.
+  const detected = call && call.peak !== 'green' ? mergeExposures(call.exposures, detectExposures(call.transcript)) : [];
+  const shared = useWhatWasShared(call?.callId ?? id, detected);
   if (!call && !waited) return <div className="screen-log" aria-busy="true" />;
   if (!call) {
     return (
@@ -36,6 +42,8 @@ export default function E9CallDetail({ entry }: { entry?: CallLogEntry }) {
       </div>
     );
   }
+  const risky = call.peak !== 'green';
+  const gave = risky && shared.exposures.length > 0;
   return (
     <div className="screen-log">
       <div className="family-head">
@@ -44,9 +52,18 @@ export default function E9CallDetail({ entry }: { entry?: CallLogEntry }) {
           {when(call.startedAt)} · {duration(call)}
         </span>
       </div>
-      <h1 className="screen-heading">{HEADLINE[call.peak]}</h1>
+      <h1 className="screen-heading">{gave ? sharedTitle(shared.exposures) : HEADLINE[call.peak]}</h1>
       {call.risk?.reason && <p className="screen-lede">{call.risk.reason}</p>}
       {call.familyAlerted && <p className="screen-note">Your family was told about this call.</p>}
+      {gave && (
+        <button
+          type="button"
+          className="what-next-jump"
+          onClick={() => document.getElementById('what-next')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        >
+          See what to do now ↓
+        </button>
+      )}
       <StageTracker hit={stagesOf(call.tactics)} />
 
       <section className="call-detail__section">
@@ -59,6 +76,18 @@ export default function E9CallDetail({ entry }: { entry?: CallLogEntry }) {
           </p>
         )}
       </section>
+
+      {risky && (
+        <div id="what-next" className="call-detail__section what-next-block">
+          <SharedPicker shared={shared} />
+          <WhatNext
+            callId={call.callId}
+            exposures={shared.exposures}
+            scam={call.peak === 'red'}
+            familyPhone={loadSettings().family.find((c) => c.phone)?.phone}
+          />
+        </div>
+      )}
 
       <EventTimeline events={call.events} startedAt={call.startedAt} />
 

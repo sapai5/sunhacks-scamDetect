@@ -100,6 +100,7 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
     verification: call.verification,
     familyAlerted: call.familyAlerted,
     agentStatus: call.agentStatus,
+    exposures: call.state?.exposures,
   };
   const elder = await loadElder(call.elderId);
   const { state, shouldAlert, bedrockMs } = await score(areq, elder);

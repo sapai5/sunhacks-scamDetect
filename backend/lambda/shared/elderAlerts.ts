@@ -9,7 +9,8 @@
 //   scam        the agent confirmed a scam and hung up
 //   verified    the caller passed the family question; their phone rings again
 //   ended       a yellow or red call ended (green calls end quietly)
-import type { AgentStatus, Level } from '../../../contracts/index.js';
+import type { AgentStatus, Exposure, Level } from '../../../contracts/index.js';
+import { exposureSentence } from '../../../contracts/exposures.js';
 
 /** The parts of a call the rule looks at. */
 export interface AlertView {
@@ -18,6 +19,8 @@ export interface AlertView {
   ended?: boolean;
   /** The worst level the call reached, for the end-of-call alert. */
   peak?: Level;
+  /** What the elder handed over: the end-of-call alert points them to the steps to take. */
+  exposures?: Exposure[];
 }
 
 export type ElderAlertKind = 'red' | 'takeover' | 'scam' | 'verified' | 'ended';
@@ -57,12 +60,13 @@ export function elderAlertsFor(before: AlertView | undefined, now: AlertView, ca
     }
   }
   const peak = worst(now.peak, now.level, b.peak, b.level);
-  // After a confirmed scam the "scam" alert already said it all.
-  if (now.ended && !b.ended && peak !== 'green' && now.agentStatus !== 'scam_confirmed') {
+  const shared = now.exposures?.length ? exposureSentence(now.exposures) : '';
+  // After a confirmed scam the "scam" alert already said it all, unless something was handed over first.
+  if (now.ended && !b.ended && peak !== 'green' && (now.agentStatus !== 'scam_confirmed' || shared)) {
     out.push({
       kind: 'ended',
-      title: peak === 'red' ? 'You hung up on a likely scam' : 'That call had warning signs',
-      body: 'Tap to see what was said.',
+      title: shared ? `You may have given the caller ${shared}` : peak === 'red' ? 'You hung up on a likely scam' : 'That call had warning signs',
+      body: shared ? 'Tap for the steps to take now. Your family can help.' : 'Tap to see what was said.',
       path: page,
     });
   }

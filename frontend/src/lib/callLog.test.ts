@@ -47,6 +47,14 @@ describe('entryFor', () => {
     expect(e.tactics).toContain('urgency');
   });
 
+  it('keeps what the elder handed over, from the backend and from the transcript', () => {
+    const said = [line(0, 'Read me the card number on the front.'), { ...line(1, 'Four one two eight, seven seven zero three'), speaker: 'elder' }];
+    const prev = entryFor(snap({ risk: { ...risk('red'), exposures: ['ssn'] }, transcript: said }))!;
+    expect(prev.exposures).toEqual(['card_number', 'ssn']);
+    // A later result without them (e.g. a phone call after a reload) doesn't erase them.
+    expect(entryFor(snap({ risk: risk('red'), transcript: [] }), prev)!.exposures).toEqual(['card_number', 'ssn']);
+  });
+
   it('remembers that the family was alerted', () => {
     const prev = entryFor(snap({ risk: { ...risk('red'), familyAlerted: true } }))!;
     expect(entryFor(snap({ risk: risk('red') }), prev)!.familyAlerted).toBe(true);

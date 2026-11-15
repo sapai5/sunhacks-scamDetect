@@ -151,6 +151,7 @@ function alertView(call: Record<string, any> | undefined): AlertView | undefined
     agentStatus: call.agentStatus ?? 'idle',
     ended: call.ended === true,
     peak: call.familyAlerted || call.state.familyAlerted ? 'red' : call.state.level,
+    exposures: call.state.exposures,
   };
 }
 

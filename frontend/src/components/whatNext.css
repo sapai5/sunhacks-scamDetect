@@ -1,0 +1,297 @@
+/* "What to do now" checklist (E6 summary, E9 call detail, F2 family summary). Big targets, plain text. */
+.what-next {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+.what-next__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.what-next__count {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-text-muted);
+}
+.what-next__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.what-next__step {
+  display: flex;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+.what-next__step:first-child {
+  border-color: var(--color-danger);
+  background: var(--color-danger-tint);
+}
+.what-next__step--done,
+.what-next__step--done:first-child {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+.what-next__step--done .what-next__title {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+.what-next__step--done .what-next__detail,
+.what-next__step--done .what-next__actions {
+  display: none;
+}
+.what-next__check,
+.what-next__num {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-text-muted);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: 600 18px/1 var(--font-sans);
+  display: grid;
+  place-items: center;
+}
+.what-next__check {
+  cursor: pointer;
+}
+.what-next__check[aria-checked='true'] {
+  border-color: var(--color-safe);
+  background: var(--color-safe);
+  color: var(--color-on-strong);
+}
+.what-next__check:focus-visible {
+  outline: 3px solid var(--color-verify);
+  outline-offset: 2px;
+}
+.what-next__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.what-next__title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 26px;
+  color: var(--color-text);
+}
+.what-next__detail {
+  margin: 0;
+  font-size: 16px;
+  line-height: 23px;
+  color: var(--color-text-muted);
+}
+.what-next__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.what-next__action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-verify);
+  color: var(--color-verify);
+  font-size: 17px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.what-next__action--call {
+  background: var(--color-verify);
+  border-color: var(--color-verify);
+  color: var(--color-on-strong);
+}
+.what-next__action:focus-visible {
+  outline: 3px solid var(--color-verify);
+  outline-offset: 2px;
+}
+
+/* E11 preview: pick what the caller got. */
+.what-next-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.what-next-picker__chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: 500 15px/1 var(--font-sans);
+  cursor: pointer;
+}
+.what-next-picker__chip[aria-pressed='true'] {
+  border-color: var(--color-danger);
+  background: var(--color-danger-tint);
+  color: var(--color-on-danger);
+}
+.what-next-picker__chip:focus-visible {
+  outline: 3px solid var(--color-verify);
+  outline-offset: 2px;
+}
+
+/* No leak: the general steps are advice, not an emergency, so the first one isn't red. */
+.what-next__step--calm:first-child {
+  border-color: var(--color-border);
+  background: var(--color-bg);
+}
+
+/* E9: the question + steps sit below the transcript; the heading links down to them. */
+.what-next-block {
+  gap: 16px;
+  scroll-margin-top: 16px;
+}
+.what-next-jump {
+  align-self: flex-start;
+  margin: -8px 0 0;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: var(--color-verify);
+  font: 600 17px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+.what-next-jump:focus-visible {
+  outline: 3px solid var(--color-verify);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* "Did you give the caller anything?": one pill that opens a multi-select list (E6, E9). */
+.what-next-ask {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+.what-next-ask__q {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 25px;
+  color: var(--color-text);
+}
+.what-next-dropdown {
+  position: relative;
+  max-width: 100%;
+}
+.what-next-dropdown__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: 500 17px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+.what-next-dropdown__pill > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.what-next-dropdown__pill[data-picked='true'] {
+  border-color: var(--color-danger);
+  background: var(--color-danger-tint);
+  color: var(--color-on-danger);
+}
+.what-next-dropdown__pill:focus-visible {
+  outline: 3px solid var(--color-verify);
+  outline-offset: 2px;
+}
+.what-next-dropdown__chevron {
+  font-size: 14px;
+  transition: transform 0.15s ease;
+}
+.what-next-dropdown__pill[aria-expanded='true'] .what-next-dropdown__chevron {
+  transform: rotate(180deg);
+}
+.what-next-dropdown__panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(320px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.16);
+  display: flex;
+  flex-direction: column;
+}
+.what-next-dropdown__hint {
+  margin: 4px 10px 6px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+.what-next-dropdown__option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border-radius: var(--radius-field);
+  font-size: 17px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+.what-next-dropdown__option:hover {
+  background: var(--color-surface);
+}
+.what-next-dropdown__option[data-heard='true'] {
+  cursor: default;
+}
+.what-next-dropdown__option input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--color-danger);
+}
+.what-next-dropdown__option span {
+  display: flex;
+  flex-direction: column;
+}
+.what-next-dropdown__option small {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.what-next-dropdown__done {
+  margin-top: 6px;
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-verify);
+  color: var(--color-on-strong);
+  font: 600 17px/1 var(--font-sans);
+  cursor: pointer;
+}
+.what-next-dropdown__done:focus-visible {
+  outline: 3px solid var(--color-verify);
+  outline-offset: 2px;
+}
