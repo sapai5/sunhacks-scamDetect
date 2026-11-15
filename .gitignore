@@ -2,6 +2,8 @@ node_modules/
 dist/
 cdk.out/
 cdk-outputs.json
+backend/local.config.json
+backend/telephony-outputs.json
 web-dist.zip
 .env*.local
 *.log

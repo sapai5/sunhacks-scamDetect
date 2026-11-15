@@ -15,6 +15,7 @@ import type {
   AgentResponse,
   AgentStatus,
   AnalyzeRequest,
+  IngestRequest,
   Level,
   RiskState,
   Utterance,
@@ -68,7 +69,7 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: outputs.Reg
 /** One script line through the chosen path. */
 async function analyzeLine(body: AnalyzeRequest, line: Line, ts: number): Promise<RiskState> {
   if (INGEST) {
-    const req = { callId: body.callId, elderId: body.elderId, speaker: line.speaker, text: line.text, ts };
+    const req: IngestRequest = { ...body.utterances[body.utterances.length - 1], speaker: line.speaker, ts };
     const res = await lambdaClient.send(new InvokeCommand({ FunctionName: data.IngestFnName, Payload: JSON.stringify(req) }));
     const text = new TextDecoder().decode(res.Payload);
     if (res.FunctionError) throw new Error(`ingest: ${text}`);

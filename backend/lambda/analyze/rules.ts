@@ -189,11 +189,11 @@ export function parseRequest(body: unknown): AnalyzeRequest {
 }
 
 /** Validate one sentence from the phone transcriber (IngestFn is invoked directly, not over HTTP). */
-export function parseIngest(body: unknown): Required<IngestRequest> {
+export function parseIngest(body: unknown): IngestRequest {
   if (!body || typeof body !== 'object') throw new BadRequest('event must be an IngestRequest object');
   const b = body as Record<string, unknown>;
   if (b.speaker !== 'caller' && b.speaker !== 'elder') throw new BadRequest('speaker must be "caller" or "elder"');
   const [u] = parseUtterances({ ...b, utterances: [b] }).utterances;
   if (!u.text.trim()) throw new BadRequest('text must not be empty');
-  return { callId: u.callId, elderId: u.elderId, speaker: b.speaker, text: u.text, ts: u.ts };
+  return { ...u, speaker: b.speaker };
 }
