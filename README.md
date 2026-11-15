@@ -6,7 +6,7 @@ When the call is red and the elder starts going along with it, the family gets a
 Product decisions (which calls are screened, when to alert, when the agent takes over) are in `.kiro/steering/product.md`.
 
 ```
-frontend/   PWA (Vite, vanilla TS). Mic → Transcribe streaming, light, meter, chips, verification card, takeover panel, built-in speech for the agent.
+frontend/   React PWA (Vite) built from the Figma screens. See frontend/README.md.
 backend/    CDK stack ScamShieldStage1
   lambda/credentials   STS AssumeRole → 15-min creds allowed only to open a Transcribe stream
   lambda/analyze       validate → last 60 s → Bedrock → level rules (rules.ts) → SNS alert

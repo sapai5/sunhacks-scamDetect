@@ -1,0 +1,49 @@
+/* Design tokens from the Figma file ("03 Screens" page). The design is light-first;
+   dark is only the "E5 Call red (Dark preview)" frame, applied with data-theme="dark". */
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f6f7f9; /* dashboard background, inputs, transcript rows */
+  --color-border: #e5e7eb;
+  --color-text: #111827;
+  --color-text-muted: #4b5563;
+  --color-on-strong: #ffffff;
+
+  /* Risk states: strong fill (lamp) + tint (halo / panel) + on-tint text */
+  --color-listening: #6b7280;
+  --color-listening-tint: #f3f4f6;
+  --color-on-listening: #374151;
+  --color-safe: #15803d;
+  --color-safe-tint: #dcfce7;
+  --color-on-safe: #166534;
+  --color-caution: #f59e0b;
+  --color-caution-tint: #fef3c7;
+  --color-on-caution: #92400e;
+  --color-verify: #1d4ed8;
+  --color-verify-tint: #dbeafe;
+  --color-on-verify: #1e40af;
+  --color-danger: #b91c1c;
+  --color-danger-tint: #fee2e2;
+  --color-on-danger: #7f1d1d;
+
+  /* Figma canvas (schematic only) */
+  --color-canvas: #f5f5f5;
+
+  --radius-field: 12px;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+  --gutter: 24px;
+  --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+[data-theme='dark'] {
+  --color-bg: #0b0f17;
+  --color-surface: #151b26;
+  --color-border: #1f2937;
+  --color-text: #f9fafb;
+  --color-text-muted: #9ca3af;
+  --color-on-strong: #111827;
+  --color-danger: #f87171;
+  --color-danger-tint: #3a1517;
+  --color-on-danger: #fecaca;
+}

@@ -4,46 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#111827" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ScamDetermine" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <title>Scam Shield</title>
-    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <title>ScamDetermine</title>
   </head>
   <body>
-    <main>
-      <div id="light" class="light green" aria-live="polite"><span id="level">Safe</span></div>
-      <div class="meter"><div id="meter-fill"></div></div>
-      <p id="reason"></p>
-      <div id="tactics" class="chips"></div>
-
-      <section id="verify" class="card" hidden>
-        <p class="ask">Ask the caller:</p>
-        <p id="verify-q" class="question"></p>
-        <div class="row">
-          <button id="verify-yes" class="ok">They got it right</button>
-          <button id="verify-no" class="bad">Wrong answer</button>
-        </div>
-      </section>
-
-      <section id="agent" class="card agent" aria-live="assertive" hidden>
-        <p id="agent-title" class="question"></p>
-        <p id="agent-text"></p>
-        <button id="agent-stop">Let me talk</button>
-      </section>
-
-      <p id="alerted" class="alerted" hidden>Your family has been alerted.</p>
-
-      <div class="row">
-        <button id="start" class="primary">Start listening</button>
-        <button id="stop" hidden>Stop</button>
-      </div>
-      <p class="hint">Use this for calls from numbers that aren't in your contacts.</p>
-      <label class="demo"><input type="checkbox" id="demo" /> Demo: play a test script instead of the mic</label>
-      <select id="demo-script" hidden></select>
-
-      <ol id="transcript"></ol>
-      <p id="status" class="status"></p>
-    </main>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

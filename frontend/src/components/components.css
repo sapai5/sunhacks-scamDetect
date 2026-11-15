@@ -1,0 +1,259 @@
+/* Component styles. Section names match the Figma component names. */
+
+/* ---- Risk/Light ------------------------------------------------------------------------------ */
+.risk-light {
+  display: flex;
+  align-items: center;
+  --lamp: var(--color-listening);
+  --halo: var(--color-listening-tint);
+}
+.risk-light[data-state='green'] { --lamp: var(--color-safe); --halo: var(--color-safe-tint); }
+.risk-light[data-state='yellow'] { --lamp: var(--color-caution); --halo: var(--color-caution-tint); }
+.risk-light[data-state='verifying'] { --lamp: var(--color-verify); --halo: var(--color-verify-tint); }
+.risk-light[data-state='red'] { --lamp: var(--color-danger); --halo: var(--color-danger-tint); }
+
+.risk-light--hero { flex-direction: column; gap: 20px; padding: 8px; }
+.risk-light--badge { gap: 8px; }
+
+.risk-light__lamp {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--halo);
+  transition: background-color 400ms ease;
+  flex-shrink: 0;
+}
+.risk-light__core {
+  border-radius: 50%;
+  background: var(--lamp);
+  transition: background-color 400ms ease, transform 400ms ease;
+}
+.risk-light--hero .risk-light__lamp { width: 220px; height: 220px; }
+.risk-light--hero .risk-light__core { width: 180px; height: 180px; }
+.risk-light--badge .risk-light__lamp { width: 32px; height: 32px; }
+.risk-light--badge .risk-light__core { width: 24px; height: 24px; }
+
+.risk-light__label { font-weight: 600; color: var(--color-text); white-space: nowrap; }
+.risk-light--hero .risk-light__label { font-size: 28px; }
+.risk-light--badge .risk-light__label { font-size: 14px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .risk-light--hero[data-state='red'] .risk-light__lamp { animation: halo-pulse 1.6s ease-in-out infinite; }
+  .risk-light--hero[data-state='verifying'] .risk-light__core { animation: core-breathe 2.2s ease-in-out infinite; }
+}
+@keyframes halo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--lamp) 28%, transparent); }
+  50% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--lamp) 0%, transparent); }
+}
+@keyframes core-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.94); }
+}
+
+/* ---- Risk/StatusPanel ------------------------------------------------------------------------ */
+.status-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  border-radius: var(--radius-card);
+  background: var(--color-listening-tint);
+  color: var(--color-on-listening);
+  transition: background-color 400ms ease, color 400ms ease;
+}
+.status-panel[data-state='green'] { background: var(--color-safe-tint); color: var(--color-on-safe); }
+.status-panel[data-state='yellow'] { background: var(--color-caution-tint); color: var(--color-on-caution); }
+.status-panel[data-state='verifying'] { background: var(--color-verify-tint); color: var(--color-on-verify); }
+.status-panel[data-state='red'] { background: var(--color-danger-tint); color: var(--color-on-danger); }
+.status-panel__title { margin: 0; font-size: 32px; line-height: 40px; font-weight: 600; }
+.status-panel__body { margin: 0; font-size: 22px; line-height: 30px; }
+
+/* ---- Button ---------------------------------------------------------------------------------- */
+.big-button {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 72px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--color-on-strong);
+  font: 600 24px var(--font-sans);
+  text-decoration: none;
+  cursor: pointer;
+}
+.big-button--hangup { background: var(--color-danger); }
+.big-button--primary { background: var(--color-verify); }
+.big-button--secondary { background: transparent; color: var(--color-text); box-shadow: inset 0 0 0 2px var(--color-border); }
+.big-button:disabled { opacity: 0.4; cursor: not-allowed; }
+.big-button:focus-visible { outline: 4px solid var(--color-text); outline-offset: 3px; }
+.big-button:active { transform: scale(0.99); }
+
+.text-button {
+  align-self: center;
+  border: 0;
+  background: none;
+  padding: 12px 16px;
+  font: 500 18px var(--font-sans);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* ---- Call/Header ----------------------------------------------------------------------------- */
+.call-header { display: flex; flex-direction: column; align-items: center; gap: 4px; white-space: nowrap; }
+.call-header p { margin: 0; }
+.call-header__number { font-size: 22px; font-weight: 600; color: var(--color-text); }
+.call-header__sub { font-size: 16px; color: var(--color-text-muted); }
+
+/* ---- Polly speaking pill (E4) ---------------------------------------------------------------- */
+.speaking-pill {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 15px;
+  color: var(--color-text);
+}
+.speaking-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-verify); }
+
+/* ---- field (onboarding) ---------------------------------------------------------------------- */
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field__label { font-size: 15px; color: var(--color-text-muted); }
+.field__input {
+  height: 64px;
+  padding: 0 20px;
+  border-radius: var(--radius-field);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font: 400 20px var(--font-sans);
+  color: var(--color-text);
+}
+.field__input:focus { outline: 3px solid var(--color-verify-tint); border-color: var(--color-verify); }
+
+/* ---- SMS/Bubble (F1) ------------------------------------------------------------------------- */
+.sms-bubble {
+  max-width: 300px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--color-surface);
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--color-text);
+}
+
+/* ---- shared ---------------------------------------------------------------------------------- */
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.48px;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* ---- Transcript ------------------------------------------------------------------------------ */
+.transcript { display: flex; flex-direction: column; gap: 16px; }
+.transcript p { margin: 0; }
+.transcript__empty { color: var(--color-text-muted); padding: 12px 16px; }
+.transcript-line {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-radius: 12px;
+  animation: line-in 300ms ease-out;
+}
+.transcript-line--caller { background: var(--color-surface); }
+.transcript--plain .transcript-line--caller { background: transparent; }
+@keyframes line-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.transcript-line__time { font-family: var(--font-mono); font-weight: 500; font-size: 13px; color: var(--color-text-muted); white-space: nowrap; }
+.transcript-line__body { flex: 1 0 0; min-width: 1px; display: flex; flex-direction: column; gap: 4px; }
+.transcript-line__meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.transcript-line__speaker { font-size: 12px; font-weight: 600; letter-spacing: 0.48px; text-transform: uppercase; color: var(--color-text-muted); }
+.transcript-line__text { font-size: 16px; line-height: 24px; color: var(--color-text); }
+.transcript-line__llr { font-family: var(--font-mono); font-weight: 500; font-size: 14px; color: var(--color-text-muted); text-align: right; white-space: nowrap; }
+.transcript-line__llr.is-hot { color: var(--color-danger); }
+
+.tactic-chip {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger-tint);
+  color: var(--color-on-danger);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.48px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---- Stage/Tracker --------------------------------------------------------------------------- */
+.stage-tracker { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 12px; background: var(--color-surface); width: 100%; }
+.stage-tracker p { margin: 0; }
+.stage-tracker__steps { display: flex; gap: 8px; }
+.stage-step { flex: 1 0 0; min-width: 1px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.stage-step__dot { width: 24px; height: 24px; border-radius: 50%; background: var(--color-border); transition: background-color 300ms ease; }
+.stage-step.is-hit .stage-step__dot { background: var(--color-danger); }
+.stage-step__label { font-size: 13px; color: var(--color-text-muted); white-space: nowrap; }
+.stage-step.is-hit .stage-step__label { font-weight: 600; color: var(--color-text); }
+.stage-tracker__note { font-size: 12px; color: var(--color-text-muted); }
+
+/* ---- VerifyCard ------------------------------------------------------------------------------ */
+.verify-card {
+  display: flex; flex-direction: column; gap: 10px; padding: 20px; border-radius: var(--radius-card); width: 100%;
+  background: var(--color-verify-tint);
+  --eyebrow: var(--color-on-verify);
+  animation: line-in 300ms ease-out;
+}
+.verify-card p { margin: 0; }
+.verify-card[data-result='wrong'] { background: var(--color-danger-tint); --eyebrow: var(--color-on-danger); }
+.verify-card[data-result='correct'] { background: var(--color-safe-tint); --eyebrow: var(--color-on-safe); }
+.verify-card__eyebrow { color: var(--eyebrow); }
+.verify-card__question { font-size: 20px; line-height: 28px; font-weight: 600; color: var(--color-text); }
+.verify-card__answer { font-size: 16px; line-height: 24px; color: var(--color-text); }
+.verify-card__result { font-family: var(--font-mono); font-weight: 500; font-size: 14px; color: var(--eyebrow); white-space: pre; }
+
+/* ---- VerdictCard (D3 adjudication) ----------------------------------------------------------- */
+.verdict-card {
+  display: flex; flex-direction: column; gap: 10px; padding: 20px; border-radius: var(--radius-card); width: 100%;
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-verify);
+  animation: line-in 300ms ease-out;
+}
+.verdict-card p { margin: 0; }
+.verdict-card__eyebrow { color: var(--color-verify); }
+.verdict-card__body { font-size: 16px; line-height: 24px; color: var(--color-text); }
+.verdict-card__verdict { font-family: var(--font-mono); font-weight: 500; font-size: 14px; color: var(--color-on-verify); }
+
+/* ---- Evidence/Chart -------------------------------------------------------------------------- */
+.evidence-chart { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; width: 100%; }
+.evidence-chart svg { display: block; }
+.chart-title { font-family: var(--font-sans); font-weight: 600; font-size: 16px; fill: var(--color-text); }
+.chart-mono { font-family: var(--font-mono); font-weight: 500; font-size: 12px; }
+.chart-small { font-family: var(--font-sans); font-size: 12px; }
+.chart-note { font-family: var(--font-sans); font-weight: 600; font-size: 12px; }
+@media (prefers-reduced-motion: no-preference) {
+  .chart-point--new { animation: point-in 400ms ease-out; transform-box: fill-box; transform-origin: center; }
+}
+@keyframes point-in { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* ---- Dashboard top bar + metric tile --------------------------------------------------------- */
+.dash-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; min-height: 100px; }
+.dash-top__title { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.01em; }
+.dash-top__right { display: flex; align-items: center; gap: 24px; }
+.dash-top__meta { margin: 0; font-family: var(--font-mono); font-weight: 500; font-size: 14px; color: var(--color-text-muted); white-space: nowrap; }
+
+.metric-tile { display: flex; flex-direction: column; gap: 6px; padding: 16px; }
+.metric-tile p { margin: 0; }
+.metric-tile__value { font-size: 40px; font-weight: 700; line-height: 1; }
+.metric-tile__label { font-size: 15px; color: var(--color-text); }
+.metric-tile__sub { font-size: 12px; color: var(--color-text-muted); }
