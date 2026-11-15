@@ -51,7 +51,9 @@ export async function loadConfig(): Promise<BridgeConfig> {
     publicUrl: need('PUBLIC_URL').replace(/\/+$/, ''),
     port: Number(process.env.PORT ?? 8080),
     region,
-    elderId: process.env.ELDER_ID ?? 'e-01',
+    // Dry runs (the simulator) use "sim", so they don't show up live in the app (no app listens to "sim").
+    // Real calls use e-01, the demo phone. Override with ELDER_ID.
+    elderId: process.env.ELDER_ID ?? (process.env.TWILIO_DRY_RUN === '1' ? 'sim' : 'e-01'),
     elderPhone: local.elderPhone,
     trustedContacts: local.trustedContacts ?? [],
     ingestFnName: data.IngestFnName,

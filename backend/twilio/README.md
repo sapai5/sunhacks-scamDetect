@@ -43,8 +43,9 @@ TWILIO_DRY_RUN=1 TWILIO_ACCOUNT_SID=ACdryrun TWILIO_AUTH_TOKEN=x TWILIO_NUMBER=+
 npm run twilio:sim -w backend -- grandparent-scam
 ```
 
-Runs real Transcribe, Bedrock and alerts (the family email gets messages). On PowerShell, set the
-variables with `$env:NAME='value';` first.
+Runs real Transcribe, Bedrock and alerts: red sims still email the family, because alerts go to the
+shared SNS topic. Dry runs use `elderId: "sim"`, so they don't appear in the app; set `ELDER_ID=e-01`
+when you want a sim on the demo phone. On PowerShell, set the variables with `$env:NAME='value';` first.
 
 ## Trial limits
 
