@@ -27,7 +27,7 @@ export default function E8CallLog({ entries }: { entries?: CallLogEntry[] }) {
           {calls.map((c) => (
             <li key={c.callId}>
               <Link className="call-log__row" to={`/elder/call?id=${encodeURIComponent(c.callId)}`}>
-                <RiskLight state={c.peak} size="badge" />
+                <RiskLight state={c.peak} size="badge" showLabel={false} />
                 <span className="call-log__text">
                   <span className="call-log__title">
                     {HEADLINE[c.peak]}

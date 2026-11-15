@@ -16,7 +16,9 @@ export interface O1Props {
 
 export default function O1FamilyContacts({ initial, onNext, submitLabel = 'Next' }: O1Props) {
   const [family, setFamily] = useState<Contact[]>(initial?.length ? initial : SAMPLE_FAMILY);
-  const set = (i: number, patch: Partial<Contact>) => setFamily((f) => f.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const [index, setIndex] = useState(0);
+  const current = family[index] ?? family[0] ?? { name: '', phone: '' };
+  const set = (patch: Partial<Contact>) => setFamily((list) => list.map((c, j) => (j === index ? { ...c, ...patch } : c)));
 
   return (
     <form
@@ -27,14 +29,32 @@ export default function O1FamilyContacts({ initial, onNext, submitLabel = 'Next'
       }}
     >
       <h1 className="screen-heading">Who should we text if a call looks like a scam?</h1>
-      {family.map((c, i) => (
-        <div key={i} className="field-group">
-          <Field label="Name" value={c.name} onChange={(name) => set(i, { name })} autoComplete="name" />
-          <Field label="Phone" type="tel" value={c.phone} onChange={(phone) => set(i, { phone })} autoComplete="tel" />
+      {family.length > 1 && (
+        <div className="contact-switch">
+          <button type="button" className="contact-switch__btn" disabled={index === 0} onClick={() => setIndex((i) => i - 1)}>
+            Previous
+          </button>
+          <p className="contact-switch__count">
+            Person {index + 1} of {family.length}
+          </p>
+          <button type="button" className="contact-switch__btn" disabled={index === family.length - 1} onClick={() => setIndex((i) => i + 1)}>
+            Next
+          </button>
         </div>
-      ))}
+      )}
+      <div className="field-group">
+        <Field label="Name" value={current.name} onChange={(name) => set({ name })} autoComplete="name" />
+        <Field key={index} label="Phone" type="tel" value={current.phone} onChange={(phone) => set({ phone })} autoComplete="tel" placeholder="(480) 555-0193" />
+      </div>
       {family.length < 3 && (
-        <button type="button" className="text-button" onClick={() => setFamily((f) => [...f, { name: '', phone: '' }])}>
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => {
+            setFamily((list) => [...list, { name: '', phone: '' }]);
+            setIndex(family.length);
+          }}
+        >
           Add another person
         </button>
       )}
