@@ -1,5 +1,5 @@
 // Generates the PWA icons in public/icons/ (no dependencies: raw PNG via zlib).
-// Design: the Risk/Light in "Protected" green on a dark tile. Run: node scripts/gen-icons.mjs
+// Design: the Risk/Light in "Protected" green on a dark tile. Run: npm run icons -w frontend
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
@@ -12,14 +12,14 @@ const CORE = [0x15, 0x80, 0x3d]; // --color-safe
  * @param scale circle size relative to the tile (maskable icons keep art inside the 80% safe zone)
  * @param radius tile corner radius as a fraction of size (0 = full-bleed square, for maskable/iOS)
  */
-function icon(size, { scale = 1, radius = 0 } = {}) {
+function icon(size: number, { scale = 1, radius = 0 }: { scale?: number; radius?: number } = {}): Buffer {
   const SS = 4; // supersampling per axis for antialiasing
   const c = size / 2;
   const rHalo = size * 0.36 * scale;
   const rCore = size * 0.28 * scale;
   const rTile = size * radius;
   const px = Buffer.alloc(size * size * 4);
-  const inTile = (x, y) => {
+  const inTile = (x: number, y: number) => {
     if (rTile === 0) return true;
     const dx = Math.max(rTile - x, 0, x - (size - rTile));
     const dy = Math.max(rTile - y, 0, y - (size - rTile));
@@ -49,7 +49,7 @@ function icon(size, { scale = 1, radius = 0 } = {}) {
   return png(size, size, px);
 }
 
-function png(w, h, rgba) {
+function png(w: number, h: number, rgba: Buffer): Buffer {
   const raw = Buffer.alloc((w * 4 + 1) * h);
   for (let y = 0; y < h; y++) {
     raw[y * (w * 4 + 1)] = 0; // filter: none
@@ -67,7 +67,7 @@ const CRC = new Int32Array(256).map((_, n) => {
   for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
   return c;
 });
-function chunk(type, data) {
+function chunk(type: string, data: Buffer): Buffer {
   const len = Buffer.alloc(4);
   len.writeUInt32BE(data.length);
   const td = Buffer.concat([Buffer.from(type, 'ascii'), data]);
