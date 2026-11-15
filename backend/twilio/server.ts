@@ -25,6 +25,7 @@ import type { AgentResponse, AgentStatus, IngestRequest, RiskState, Utterance } 
 import { isTrusted } from '../telephony/contacts-check/index.js';
 import { mulawToPcm16, speechMs } from './audio.js';
 import { loadConfig } from './config.js';
+import { elderTexter } from './elderTexts.js';
 import { startTrackTranscriber, type TrackTranscriber } from './transcriber.js';
 import { agentTurn as agentTwiml, directDial, hangup, idle, screenedCall } from './twiml.js';
 
@@ -64,6 +65,9 @@ const turns = new Map<string, string>();
 
 const log = (callSid: string, msg: string, extra: object = {}) =>
   console.log(JSON.stringify({ t: new Date().toISOString(), call: callSid.slice(-6), msg, ...extra }));
+
+/** Texts the elder at the moments that change what they should do (red, takeover, agent done, call over). */
+const texts = elderTexter({ tw, from: cfg.twilioNumber, to: cfg.elderPhone, webUrl: cfg.webUrl, dryRun: DRY_RUN, log });
 
 // --- HTTP: Twilio webhooks --------------------------------------------------------
 
@@ -256,6 +260,7 @@ function endCall(callSid: string | undefined, why: string) {
 /** Calls.ended = true: the app closes the call and shows the summary. If the agent still had it, the caller left. */
 async function markEnded(call: Call) {
   if (call.agentStatus === 'active') await setAgentStatus(call, 'active', 'caller_left', 'The call ended while the agent had it.');
+  texts.update(call.callSid, { ended: true });
   try {
     await ddb.send(
       new UpdateCommand({
@@ -303,9 +308,11 @@ async function ingest(call: Call, req: IngestRequest) {
     const state = JSON.parse(body) as RiskState | null;
     if (!state) return; // the agent has the call, or this was the agent's own line
     log(call.callSid, 'risk', { level: state.level, risk: state.risk, tactics: state.tactics, elder: state.elderState, action: state.action });
+    texts.update(call.callSid, { level: state.level });
     // Claim the call in Calls first: IngestFn pauses scoring and the app shows the takeover screen.
     if (state.action === 'agent_takeover' && call.agentStatus === 'idle' && (await setAgentStatus(call, 'idle', 'active'))) {
       call.agentStatus = 'active';
+      texts.update(call.callSid, { agentStatus: 'active' });
       call.mutedUntil = Infinity; // the elder is about to be disconnected; outbound = our agent only
       void agentTurn(call);
     }
@@ -438,6 +445,7 @@ async function finishAgent(call: Call, status: AgentStatus, lastLine: string, su
   // Only while the agent still has the call: if the elder took it back, that wins.
   if (!(await setAgentStatus(call, 'active', status, summary))) return await handBack(call);
   call.agentStatus = status;
+  texts.update(call.callSid, { agentStatus: status });
   log(call.callSid, 'agent finished', { status, lastLine });
   // The TwiML from speak() already rang the elder back (verified) or hung up (scam / caller left).
   if (status === 'caller_left' && !DRY_RUN) {

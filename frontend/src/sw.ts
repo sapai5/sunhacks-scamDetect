@@ -24,6 +24,56 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// --- Call alerts (Web Push from the push Lambda; see lib/webPush.ts) -----------------------------
+// Payload: { title, body, url, tag, kind }. One tag per call, so a newer alert replaces the older one.
+interface AlertPayload {
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+  kind?: string;
+}
+
+self.addEventListener('push', (e) => {
+  let p: AlertPayload = { title: 'ScamDetermine', body: 'Open the app to see your call.', url: '/elder/live', tag: 'scamdetermine' };
+  try {
+    p = { ...p, ...(e.data?.json() as Partial<AlertPayload>) };
+  } catch {
+    /* not JSON: show the default */
+  }
+  const urgent = p.kind === 'red' || p.kind === 'takeover';
+  e.waitUntil(
+    self.registration.showNotification(p.title, {
+      body: p.body,
+      tag: p.tag,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: p.url },
+      // Stays until tapped while the call is risky; `renotify` buzzes again when a newer alert replaces one.
+      requireInteraction: urgent,
+      renotify: true,
+    } as NotificationOptions & { renotify: boolean }),
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data as { url?: string } | null)?.url ?? '/elder/live', self.location.origin);
+  e.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const open = windows.find((w) => new URL(w.url).origin === url.origin);
+      if (open) {
+        // The app routes in place (App.tsx listens), so the running call isn't reloaded.
+        open.postMessage({ type: 'open', path: url.pathname + url.search });
+        await open.focus();
+        return;
+      }
+      await self.clients.openWindow(url.href);
+    })(),
+  );
+});
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;

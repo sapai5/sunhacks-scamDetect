@@ -1,5 +1,6 @@
 // E9 One past call (not in Figma yet): verdict, scam stages, the full transcript and call events.
 // Opened from E8 (or the E6 summary) as /elder/call?id=<callId>.
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { EventTimeline } from '../../components/CallEvents';
 import { StageTracker, Transcript } from '../../components/Dashboard';
@@ -12,7 +13,20 @@ import './callLog.css';
 export default function E9CallDetail({ entry }: { entry?: CallLogEntry }) {
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const call = entry ?? getCall(params.get('id') ?? '');
+  const id = params.get('id') ?? '';
+  const [call, setCall] = useState(() => entry ?? getCall(id));
+  const [waited, setWaited] = useState(false);
+  // Opened from an end-of-call alert, the app may still be saving the call: look again for a few seconds.
+  useEffect(() => {
+    if (call) return;
+    const tick = setInterval(() => setCall(getCall(id)), 500);
+    const stop = setTimeout(() => setWaited(true), 5_000);
+    return () => {
+      clearInterval(tick);
+      clearTimeout(stop);
+    };
+  }, [call, id]);
+  if (!call && !waited) return <div className="screen-log" aria-busy="true" />;
   if (!call) {
     return (
       <div className="screen-log">

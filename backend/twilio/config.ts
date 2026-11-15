@@ -31,6 +31,8 @@ export interface BridgeConfig {
   callsTable: string;
   eldersTable: string;
   agentUrl: string;
+  /** The web app (Amplify), for the links in texts to the elder. */
+  webUrl: string;
 }
 
 async function outputs(cf: CloudFormationClient, stack: string): Promise<Record<string, string>> {
@@ -63,5 +65,6 @@ export async function loadConfig(): Promise<BridgeConfig> {
     callsTable: data.CallsTableName,
     eldersTable: data.EldersTableName,
     agentUrl: stage1.AgentUrl,
+    webUrl: process.env.WEB_URL ?? stage1.WebUrl,
   };
 }
