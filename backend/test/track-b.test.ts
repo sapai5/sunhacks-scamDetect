@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BadRequest, decide, parseIngest } from '../lambda/analyze/rules.js';
+import { BadRequest, decide, parseIngest, parseRescore } from '../lambda/analyze/rules.js';
+import { parseAppMessage } from '../lambda/push/rules.js';
 import { parseSettingsPatch } from '../lambda/settings/rules.js';
 
 const fresh = { prevLevel: 'green', calmStreak: 0, verification: 'unasked', familyAlerted: false, agentStatus: 'idle' } as const;
@@ -57,5 +58,27 @@ describe('parseSettingsPatch', () => {
     expect(() => parseSettingsPatch({ elderId: 'e-01', trustedContacts: ['480-555-0193'] })).toThrow(BadRequest);
     expect(() => parseSettingsPatch({ elderId: 'e-01' })).toThrow(BadRequest);
     expect(() => parseSettingsPatch({ verificationAnswer: 'x' })).toThrow(BadRequest);
+  });
+});
+
+describe('phone call messages', () => {
+  it('accepts "Let me talk" and Checking-screen answers from the app', () => {
+    expect(parseAppMessage('{"action":"stopAgent","callId":"CA1"}')).toEqual({ action: 'stopAgent', callId: 'CA1' });
+    expect(parseAppMessage('{"action":"verification","callId":"CA1","result":"failed"}')).toEqual({
+      action: 'verification',
+      callId: 'CA1',
+      result: 'failed',
+    });
+  });
+
+  it('rejects anything else from the app', () => {
+    const bad = ['', 'null', 'not json', '{"action":"verification","callId":"CA1","result":"maybe"}', '{"action":"hack","callId":"CA1"}', '{"action":"stopAgent"}'];
+    for (const body of bad) expect(parseAppMessage(body)).toBeNull();
+  });
+
+  it('tells a rescore apart from a sentence', () => {
+    expect(parseRescore({ callId: 'CA1', rescore: true })).toEqual({ callId: 'CA1', rescore: true });
+    expect(parseRescore({ callId: 'CA1', speaker: 'caller', text: 'hi' })).toBeNull();
+    expect(parseRescore({ rescore: true })).toBeNull();
   });
 });

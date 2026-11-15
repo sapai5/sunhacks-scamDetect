@@ -5,8 +5,8 @@ import type {
   AnalyzeRequest,
   CallEventRequest,
   CallEventResponse,
+  PushAppMessage,
   PushMessage,
-  PushStopAgent,
   RiskState,
 } from '../../../contracts/index.js';
 import { mockAgent } from './mockAgent';
@@ -141,9 +141,12 @@ export function listenForPhoneCalls(elderId: string, onMessage: (m: PushMessage)
   };
 }
 
-/** "Let me talk" on a phone call: the server's agent stops and scoring resumes. Returns false if the socket isn't open. */
-export function stopPhoneAgent(callId: string): boolean {
+/**
+ * Tell the server about a phone call it is checking: "Let me talk" (stopAgent) or the elder's answer
+ * on the Checking screen (verification). Returns false if the socket isn't open.
+ */
+export function sendToPhoneCall(msg: PushAppMessage): boolean {
   if (pushSocket?.readyState !== WebSocket.OPEN) return false;
-  pushSocket.send(JSON.stringify({ action: 'stopAgent', callId } satisfies PushStopAgent));
+  pushSocket.send(JSON.stringify(msg));
   return true;
 }

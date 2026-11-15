@@ -98,6 +98,12 @@ export interface IngestRequest extends Utterance {
   speaker: 'caller' | 'elder' | 'agent';
 }
 
+/** Push Lambda -> IngestFn: score the call again with no new sentence (the elder answered the family question). */
+export interface IngestRescore {
+  callId: string;
+  rescore: true;
+}
+
 /** App -> Agent Lambda: the transcript so far, including the agent's own lines. */
 export interface AgentRequest {
   callId: string;
@@ -198,3 +204,13 @@ export interface PushStopAgent {
   action: 'stopAgent';
   callId: string;
 }
+
+/** App -> push socket: the elder's answer on the Checking screen during a phone call. The call is re-scored right away. */
+export interface PushVerification {
+  action: 'verification';
+  callId: string;
+  result: 'passed' | 'failed';
+}
+
+/** Everything the app sends on the push socket. */
+export type PushAppMessage = PushStopAgent | PushVerification;

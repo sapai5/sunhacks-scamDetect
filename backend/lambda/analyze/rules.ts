@@ -10,6 +10,7 @@ import {
   type AnalyzeRequest,
   type ElderState,
   type IngestRequest,
+  type IngestRescore,
   type Level,
   type Tactic,
   type Utterance,
@@ -186,6 +187,13 @@ export function parseRequest(body: unknown): AnalyzeRequest {
     familyAlerted: b.familyAlerted === true,
     calmStreak: Number.isInteger(b.calmStreak) ? Math.max(0, Math.min(10, Number(b.calmStreak))) : 0,
   };
+}
+
+/** A rescore request for IngestFn (from the push Lambda), or null if the event is something else. */
+export function parseRescore(body: unknown): IngestRescore | null {
+  const b = body as Record<string, unknown> | null;
+  if (b?.rescore !== true || typeof b.callId !== 'string' || !b.callId || b.callId.length > 64) return null;
+  return { callId: b.callId, rescore: true };
 }
 
 /** Validate one sentence from the phone transcriber (IngestFn is invoked directly, not over HTTP). */

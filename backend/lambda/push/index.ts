@@ -3,18 +3,24 @@
 //   (string set `connections`). Closed sockets are removed the next time a push to them fails.
 // - Calls stream: each change to a call's RiskState or phone agent progress is sent to the
 //   elder's open sockets as a PushMessage.
-// - $default: messages from the app. {action: 'stopAgent', callId} is "Let me talk" during a
-//   phone takeover: the agent stops and IngestFn goes back to scoring.
+// - $default: messages from the app (PushAppMessage) about a phone call:
+//   {action: 'stopAgent'}    "Let me talk" during a takeover: the agent stops, scoring resumes.
+//   {action: 'verification'} the elder's answer on the Checking screen: saved on the call, and
+//                            IngestFn scores it again right away (a wrong answer turns it red).
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { ApiGatewayManagementApiClient, GoneException, PostToConnectionCommand } from '@aws-sdk/client-apigatewaymanagementapi';
+import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import type { APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, DynamoDBStreamEvent } from 'aws-lambda';
-import type { PushMessage, PushStopAgent } from '../../../contracts/index.js';
+import type { IngestRescore, PushMessage } from '../../../contracts/index.js';
 import { ddb } from '../shared/db.js';
+import { parseAppMessage } from './rules.js';
 
 const ELDERS_TABLE = process.env.ELDERS_TABLE!;
 const CALLS_TABLE = process.env.CALLS_TABLE!;
+const INGEST_FN = process.env.INGEST_FN!;
+const lambda = new LambdaClient({});
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '').split(',');
 const api = new ApiGatewayManagementApiClient({ endpoint: process.env.CALLBACK_URL });
 
@@ -53,29 +59,37 @@ async function connect(event: SocketEvent): Promise<APIGatewayProxyResultV2> {
 }
 
 async function fromApp(body: string | undefined): Promise<APIGatewayProxyResultV2> {
-  let msg: Partial<PushStopAgent>;
-  try {
-    msg = JSON.parse(body ?? '');
-  } catch {
-    return { statusCode: 400 };
+  const msg = parseAppMessage(body);
+  if (!msg) return { statusCode: 400 };
+  // ponytail: any socket that passed the origin check can change a call it knows the callId of
+  // (a Twilio CallSid, so not guessable); per-elder auth comes with Cognito (Stage 3).
+  if (msg.action === 'stopAgent') {
+    await updateCall(msg.callId, 'SET agentStatus = :stopped', 'agentStatus = :active', { ':stopped': 'stopped', ':active': 'active' });
+  } else if (await updateCall(msg.callId, 'SET verification = :v', 'attribute_exists(callId)', { ':v': msg.result })) {
+    // Score again now, like the browser does, instead of waiting for the caller's next sentence.
+    const rescore: IngestRescore = { callId: msg.callId, rescore: true };
+    await lambda.send(new InvokeCommand({ FunctionName: INGEST_FN, InvocationType: 'Event', Payload: JSON.stringify(rescore) }));
   }
-  if (msg?.action !== 'stopAgent' || typeof msg.callId !== 'string' || !msg.callId || msg.callId.length > 64) return { statusCode: 400 };
-  // ponytail: any socket that passed the origin check can stop a call's agent if it knows the callId
-  // (a Connect contact ID, so not guessable); per-elder auth comes with Cognito (Stage 3).
+  return { statusCode: 200 };
+}
+
+/** UpdateItem on a call. Returns false when the condition fails (no such call, or the agent already finished). */
+async function updateCall(callId: string, expression: string, condition: string, values: Record<string, unknown>): Promise<boolean> {
   try {
     await ddb.send(
       new UpdateCommand({
         TableName: CALLS_TABLE,
-        Key: { callId: msg.callId },
-        UpdateExpression: 'SET agentStatus = :stopped',
-        ConditionExpression: 'agentStatus = :active',
-        ExpressionAttributeValues: { ':stopped': 'stopped', ':active': 'active' },
+        Key: { callId },
+        UpdateExpression: expression,
+        ConditionExpression: condition,
+        ExpressionAttributeValues: values,
       }),
     );
+    return true;
   } catch (err) {
-    if (!(err instanceof ConditionalCheckFailedException)) throw err; // agent already done
+    if (err instanceof ConditionalCheckFailedException) return false;
+    throw err;
   }
-  return { statusCode: 200 };
 }
 
 /** What the app sees of a call: its RiskState plus the phone agent's progress. */
