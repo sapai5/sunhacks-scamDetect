@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { encodeMulaw, mulawToPcm16, pcm16ToMulaw, speechMs } from '../twilio/audio.js';
-import { directDial, sayLine, screenedCall } from '../twilio/twiml.js';
+import { agentTurn, directDial, screenedCall } from '../twilio/twiml.js';
 
 describe('mu-law audio', () => {
   it('round-trips samples within G.711 quantization error', () => {
@@ -29,20 +29,35 @@ describe('mu-law audio', () => {
 });
 
 describe('TwiML', () => {
-  it('rings trusted callers straight through with no stream', () => {
-    const x = directDial('+19715550100');
-    expect(x).toContain('<Dial>+19715550100</Dial>');
+  const base = { idleUrl: 'https://h/idle/CA1/tok', elderPhone: '+19715550100', callerId: '+17375550100' };
+
+  it('rings trusted callers straight through with no stream, from the trial caller ID', () => {
+    const x = directDial('+19715550100', '+17375550100');
+    expect(x).toContain('<Dial callerId="+17375550100"><Number>+19715550100</Number></Dial>');
     expect(x).not.toContain('<Stream');
   });
 
-  it('streams both tracks with the token and puts the caller in a conference', () => {
-    const x = screenedCall({ mediaUrl: 'wss://h/media', token: 'tok', callSid: 'CA1', conference: 'scamshield-CA1' });
+  it('streams both tracks with the token, then forwards to the elder (no conference)', () => {
+    const x = screenedCall({ mediaUrl: 'wss://h/media', token: 'tok', callSid: 'CA1', elderPhone: '+19715550100', callerId: '+17375550100' });
     expect(x).toContain('track="both_tracks"');
     expect(x).toContain('name="token" value="tok"');
-    expect(x).toContain('>scamshield-CA1</Conference>');
+    expect(x.indexOf('<Start>')).toBeLessThan(x.indexOf('<Dial'));
+    expect(x).toContain('<Number>+19715550100</Number>');
+    expect(x).not.toContain('Conference');
+    expect(x).not.toContain('method=');
+  });
+
+  it('agent turn: says the line, then waits for the reply and loops back', () => {
+    const x = agentTurn({ ...base, text: 'Who is this?', then: 'listen' });
+    expect(x).toMatch(/<Say voice="Polly\.[^"]+">Who is this\?<\/Say><Pause length="\d+"\/><Redirect>https:\/\/h\/idle\/CA1\/tok<\/Redirect>/);
+  });
+
+  it('agent turn: hands back by ringing the elder, or hangs up', () => {
+    expect(agentTurn({ ...base, text: 'Here she is.', then: 'handback' })).toContain('<Number>+19715550100</Number>');
+    expect(agentTurn({ ...base, text: 'Goodbye.', then: 'hangup' })).toContain('<Hangup/>');
   });
 
   it('escapes agent text', () => {
-    expect(sayLine('Hi <Hangup/> & bye')).toContain('Hi &lt;Hangup/&gt; &amp; bye');
+    expect(agentTurn({ ...base, text: 'Hi <Hangup/> & bye', then: 'listen' })).toContain('Hi &lt;Hangup/&gt; &amp; bye');
   });
 });
