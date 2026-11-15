@@ -29,12 +29,15 @@ import type { AgentResponse, AgentStatus, IngestRequest, RiskState, Utterance } 
 import { isTrusted } from '../telephony/contacts-check/index.js';
 import { mulawToPcm16, pcm16ToMulaw, speechMs } from './audio.js';
 import { loadConfig } from './config.js';
+import { loadLocalBackend } from './local-backend.js';
 import { openingLine, sonicSystemPrompt, startSonic, type SonicPersona, type SonicSession } from './sonic.js';
 import { startTrackTranscriber, type TrackTranscriber } from './transcriber.js';
 import { agentStream, agentTurn as agentTwiml, directDial, hangup, idle, screenedCall } from './twiml.js';
 
 const cfg = await loadConfig();
 const DRY_RUN = process.env.TWILIO_DRY_RUN === '1'; // local simulation: no Twilio REST calls
+/** Set when LOCAL_BACKEND=1: IngestFn's and the Agent Lambda's code run in this process (no AWS Lambda). */
+const backend = cfg.localBackend ? await loadLocalBackend(cfg) : undefined;
 /** Phone speech gets split into short sentences ("Uncle Mike?" "Oh, hey."), so wait a bit longer than in the app. */
 const AGENT_REPLY_DELAY_MS = 2000;
 const CALLER_SILENCE_MS = 25_000;
@@ -213,7 +216,7 @@ createServer(async (req, res) => {
     wss.handleUpgrade(req, socket, head, (ws) => (path === '/media' ? onMedia(ws) : onAgentStream(ws)));
   })
   .listen(cfg.port, () => {
-    console.log(`Twilio bridge on :${cfg.port}${DRY_RUN ? ' (dry run)' : ''}`);
+    console.log(`Twilio bridge on :${cfg.port}${DRY_RUN ? ' (dry run)' : ''}, agent voice: ${cfg.agentVoice}, backend: ${backend ? 'in this process' : 'Lambda'}`);
     console.log(`  Voice webhook: ${cfg.publicUrl}/voice   Status callback: ${cfg.publicUrl}/status`);
   });
 
@@ -338,14 +341,27 @@ function onSentence(call: Call, speaker: 'caller' | 'elder', text: string) {
   call.ingestChain = call.ingestChain.then(() => ingest(call, { callId: call.callSid, elderId: cfg.elderId, speaker, text, ts, seq }));
 }
 
+/** IngestFn: the deployed Lambda, or its code run here (LOCAL_BACKEND=1). */
+async function invokeIngest(req: IngestRequest): Promise<RiskState | null> {
+  if (backend) return backend.ingest(req);
+  const res = await lambda.send(new InvokeCommand({ FunctionName: cfg.ingestFnName, Payload: Buffer.from(JSON.stringify(req)) }));
+  const body = res.Payload ? new TextDecoder().decode(res.Payload) : 'null';
+  if (res.FunctionError) throw new Error(`${res.FunctionError}: ${body.slice(0, 300)}`);
+  return JSON.parse(body) as RiskState | null;
+}
+
+/** The Agent Lambda (Claude Haiku) on the call so far: its next line and its verdict. */
+async function askAgent(call: Call): Promise<AgentResponse> {
+  const req = { callId: call.callSid, elderId: cfg.elderId, utterances: call.utterances };
+  if (backend) return backend.agent(req);
+  const res = await fetch(cfg.agentUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req) });
+  if (!res.ok) throw new Error(`agent HTTP ${res.status}`);
+  return (await res.json()) as AgentResponse;
+}
+
 async function ingest(call: Call, req: IngestRequest) {
   try {
-    const res = await lambda.send(
-      new InvokeCommand({ FunctionName: cfg.ingestFnName, Payload: Buffer.from(JSON.stringify(req)) }),
-    );
-    const body = res.Payload ? new TextDecoder().decode(res.Payload) : 'null';
-    if (res.FunctionError) throw new Error(`${res.FunctionError}: ${body.slice(0, 300)}`);
-    const state = JSON.parse(body) as RiskState | null;
+    const state = await invokeIngest(req);
     if (!state) return; // the agent has the call, or this was the agent's own line
     log(call.callSid, 'risk', { level: state.level, risk: state.risk, tactics: state.tactics, elder: state.elderState, action: state.action });
     // Claim the call in Calls first: IngestFn pauses scoring and the app shows the takeover screen.
@@ -372,13 +388,7 @@ async function agentTurn(call: Call) {
   call.replyPending = false;
   const callerLinesAtRequest = call.utterances.filter((u) => u.speaker === 'caller').length;
   try {
-    const res = await fetch(cfg.agentUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ callId: call.callSid, elderId: cfg.elderId, utterances: call.utterances }),
-    });
-    if (!res.ok) throw new Error(`agent HTTP ${res.status}`);
-    const a = (await res.json()) as AgentResponse;
+    const a = await askAgent(call);
     if (call.agentStatus !== 'active') return;
     // The caller said more while we waited: this reply is stale, so ask again with the new lines.
     const callerLinesNow = call.utterances.filter((u) => u.speaker === 'caller').length;
@@ -651,13 +661,7 @@ async function judge(call: Call, t: SonicTakeover) {
   }
   t.judging = true;
   try {
-    const res = await fetch(cfg.agentUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ callId: call.callSid, elderId: cfg.elderId, utterances: call.utterances }),
-    });
-    if (!res.ok) throw new Error(`agent HTTP ${res.status}`);
-    const a = (await res.json()) as AgentResponse;
+    const a = await askAgent(call);
     log(call.callSid, 'verdict', { status: a.status });
     if (a.status !== 'active' && !t.closing && call.agentStatus === 'active') await closeSonicTakeover(call, t, a.status, a.say, a.summary);
   } catch (err) {

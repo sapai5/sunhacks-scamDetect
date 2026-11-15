@@ -39,6 +39,9 @@ export interface BridgeConfig {
   agentVoice: 'sonic' | 'say';
   /** The agent's persona from cdk.json, used when the elder has no settings in the Elders table. */
   persona: SonicPersona;
+  /** LOCAL_BACKEND=1: run the IngestFn and Agent Lambda code in the bridge (see local-backend.ts). */
+  localBackend: boolean;
+  familyTopicArn: string;
 }
 
 async function outputs(cf: CloudFormationClient, stack: string): Promise<Record<string, string>> {
@@ -73,6 +76,8 @@ export async function loadConfig(): Promise<BridgeConfig> {
     eldersTable: data.EldersTableName,
     agentUrl: stage1.AgentUrl,
     agentVoice: process.env.AGENT_VOICE === 'say' ? 'say' : 'sonic',
+    localBackend: process.env.LOCAL_BACKEND === '1',
+    familyTopicArn: stage1.FamilyTopicArn,
     persona: {
       elderName: ctx.elderName,
       agentName: ctx.agentName,
