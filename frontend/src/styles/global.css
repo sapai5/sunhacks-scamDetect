@@ -5,6 +5,10 @@
 *::after {
   box-sizing: border-box;
 }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 html,
 body {
   margin: 0;
@@ -15,6 +19,23 @@ body {
 }
 a {
   color: inherit;
+}
+
+/* ---------- Mobile / PWA behaviour ---------- */
+body {
+  overscroll-behavior-y: none; /* no rubber-band / pull-to-refresh mid-call */
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a,
+input {
+  touch-action: manipulation; /* no double-tap zoom delay */
+}
+button,
+.big-button {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Phone screens (elder, onboarding, family): 393 x 852 frames in Figma. */
@@ -387,4 +408,122 @@ a {
 }
 .dev-panel .partial {
   opacity: 0.5;
+}
+
+/* Shown when the app was backgrounded mid-call (iOS pauses the mic). */
+.call-banner {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-field);
+  background: var(--color-caution-tint);
+  color: var(--color-on-caution);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+/* Installed app: no debug panel, and room for the iOS status bar / home indicator. */
+@media (display-mode: standalone) {
+  .dev-panel {
+    display: none;
+  }
+  .layout-phone {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+}
+
+/* Short phones (iPhone SE / mini, Android with nav bar): the call screen must fit without scrolling. */
+@media (max-height: 760px) {
+  .screen-call,
+  .screen-center,
+  .screen-form,
+  .screen-family,
+  .screen-sms {
+    gap: 18px;
+    padding-top: 16px;
+  }
+  .screen-call .risk-light--hero {
+    gap: 12px;
+  }
+  .screen-call .risk-light--hero .risk-light__lamp {
+    width: 168px;
+    height: 168px;
+  }
+  .screen-call .risk-light--hero .risk-light__core {
+    width: 136px;
+    height: 136px;
+  }
+  .screen-call .risk-light--hero .risk-light__label {
+    font-size: 24px;
+  }
+  .status-panel {
+    padding: 18px 20px;
+  }
+  .status-panel__title {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .status-panel__body {
+    font-size: 19px;
+    line-height: 26px;
+  }
+  .big-button {
+    height: 60px;
+    font-size: 22px;
+  }
+  .screen-title,
+  .screen-heading {
+    font-size: 28px;
+    line-height: 34px;
+  }
+  .screen-lede {
+    font-size: 19px;
+    line-height: 26px;
+  }
+}
+@media (max-height: 640px) {
+  .screen-call .risk-light--hero .risk-light__lamp {
+    width: 128px;
+    height: 128px;
+  }
+  .screen-call .risk-light--hero .risk-light__core {
+    width: 104px;
+    height: 104px;
+  }
+  .speaking-pill {
+    display: none;
+  }
+}
+
+/* Call assistant on screen: shrink the light so the AgentPanel + button still fit. */
+.screen-call:has(.agent-panel) {
+  gap: 18px;
+  padding-top: 16px;
+}
+.screen-call:has(.agent-panel) .risk-light--hero {
+  flex-direction: row;
+  gap: 16px;
+  padding: 0;
+}
+.screen-call:has(.agent-panel) .risk-light--hero .risk-light__lamp {
+  width: 72px;
+  height: 72px;
+}
+.screen-call:has(.agent-panel) .risk-light--hero .risk-light__core {
+  width: 56px;
+  height: 56px;
+}
+
+.dev-panel__sim {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.dev-panel__sim button {
+  font: 12px var(--font-mono);
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
 }

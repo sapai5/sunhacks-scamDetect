@@ -34,6 +34,8 @@ export const TEST_SCRIPTS: TestScript[] = [
       caller("Hi Grandma, it's me."),
       elder('Tommy? Is that you?'),
       caller("Yeah, it's Tommy. I have a cold, that's why my voice sounds weird."),
+      // Isolation tactic: triggers the off_speaker_requested call event in the demo.
+      caller("Can you take me off speaker? I don't want anyone else to hear this."),
       caller("Grandma, I'm in trouble. I got in a car accident and they took me to jail."),
       elder('Oh my goodness, are you okay? What do you need, honey?'),
       caller('I need two thousand dollars for bail right now or they will keep me overnight.'),

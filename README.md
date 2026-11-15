@@ -24,6 +24,7 @@ contracts/  Shared TypeScript types (Utterance, AnalyzeRequest, RiskState, Agent
 | Credentials Lambda | Function URL + `BrowserTranscribeRole` | Role allows only `transcribe:StartStreamTranscriptionWebSocket`. Replaces the Cognito identity pool from the doc, same effect, less setup |
 | Analyze Lambda | Function URL, Node 22 arm64, 15 s timeout | Role: `bedrock:InvokeModel` on Claude models, `sns:Publish` on the family topic |
 | Agent Lambda | Function URL, Node 22 arm64, 15 s timeout | Same permissions. Only this function gets the verification answer |
+| Events Lambda | Function URL, 5 s timeout | Call events (hang-up, off/on speaker, caller asking to go off speaker). Alerts the family when a risky call goes off speaker, and after a hang-up on red |
 | Family alert | SNS topic `FamilyAlerts` with email (and optional SMS) subscription | Alert when red + elder engaging; summary when the agent finishes |
 
 Elder settings (name, verification question and answer, agent persona, family email, model) are CDK context in `backend/cdk.json`, passed to the Lambdas as environment variables. The values in the repo are demo data.

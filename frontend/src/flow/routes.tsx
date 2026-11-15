@@ -2,11 +2,14 @@
 // and navigation. Screens stay dumb; this is the only place that decides "what's next".
 //
 //   /  ->  onboarding O1 -> O2 -> O3  ->  E1 idle  ->  live call (E1a/E2/E3/E4/E5)  ->  E6 summary  ->  E1
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { Navigate, useNavigate } from 'react-router';
+import { CallEventSheet } from '../components/CallEvents';
+import { unlockAudio, useCallAlerts, vibrate } from '../lib/alerts';
 import { MIC_AVAILABLE } from '../lib/api';
 import { useCallContext } from '../lib/CallContext';
 import type { ElderView } from '../lib/callState';
+import { useThemeColor, useVisible, useWakeLock } from '../lib/pwa';
 import { loadSettings, saveSettings } from '../lib/settings';
 import { TEST_SCRIPTS } from '../lib/useCall';
 import type { CallScreenProps } from '../screens/elder/CallLayout';
@@ -91,6 +94,7 @@ export function IdleRoute() {
       scripts={TEST_SCRIPTS.map((s) => s.name)}
       micAvailable={MIC_AVAILABLE}
       onStart={(mode) => {
+        unlockAudio(); // this tap is what lets the red-alert sound play later (call.start unlocks speech)
         nav(FLOW.live);
         void call.start(mode);
       }}
@@ -111,19 +115,40 @@ export function LiveRoute() {
   const nav = useNavigate();
   const call = useCallContext();
   const elapsed = useElapsed(call.running ? call.startedAt : null);
+  // Mobile PWA: keep the screen on (a locked screen stops the mic), sound/vibrate on escalation,
+  // turn the status bar red on a scam, and warn if the app was backgrounded mid-call.
+  useWakeLock(call.running);
+  useCallAlerts(call.view, call.running);
+  useThemeColor(call.view === 'red' ? '#b91c1c' : '#ffffff');
+  const wasBackgrounded = useBackgroundedDuring(call.running);
+
+  // The call can end without a tap (dial tone / long silence auto-end): go to the summary.
+  const wasRunning = useRef(call.running);
+  useEffect(() => {
+    if (wasRunning.current && !call.running) nav(FLOW.summary);
+    wasRunning.current = call.running;
+  }, [call.running, nav]);
 
   if (!call.running && !call.risk) return <Navigate to={FLOW.idle} replace />;
 
   const Screen = BY_VIEW[call.view];
+  const events = call.callEvents;
+  // Hang up / End call: logged as a hang-up event (the family is alerted on red calls). Stopping
+  // the call navigates to the summary via the effect above.
   const end = () => {
-    call.stop();
-    nav(FLOW.summary);
+    vibrate(30);
+    events.hangUp();
   };
   // While the agent has the call, or after it ended the call, show the takeover screen.
   // 'verified' and 'stopped' hand the call back, so the normal screens take over again.
   const takeover = ['active', 'scam_confirmed', 'caller_left'].includes(call.agentStatus);
   return (
     <>
+      {wasBackgrounded && (
+        <p className="call-banner" role="alert">
+          Keep ScamDetermine open during the call. Listening may have paused while it was in the background.
+        </p>
+      )}
       {takeover ? (
         <E7Takeover
           agentStatus={call.agentStatus}
@@ -134,12 +159,40 @@ export function LiveRoute() {
           onTakeBack={call.takeBack}
         />
       ) : (
-        <Screen risk={call.risk} elapsed={elapsed} onEnd={end} onAnswer={call.answerVerification} />
+        <Screen
+          risk={call.risk}
+          elapsed={elapsed}
+          onEnd={end}
+          onAnswer={(v) => {
+            vibrate(30);
+            call.answerVerification(v);
+          }}
+        />
+      )}
+      {events.prompt && call.running && (
+        <CallEventSheet
+          prompt={events.prompt}
+          onStillOnSpeaker={() => {
+            vibrate(30);
+            events.stillOnSpeaker();
+          }}
+          onEnded={() => {
+            vibrate(30);
+            events.confirmEnded();
+          }}
+          onDismiss={events.dismiss}
+        />
       )}
       <details className="dev-panel">
         <summary>
           {call.view} · {call.latencyMs ?? '–'} ms · {call.status}
         </summary>
+        {/* Demo mode has no mic: fake what the hang-up / speaker detector would hear. */}
+        <div className="dev-panel__sim">
+          <button type="button" onClick={() => events.simulate('voice_lost')}>Sim: caller not heard</button>
+          <button type="button" onClick={() => events.simulate('voice_back')}>Sim: caller back</button>
+          <button type="button" onClick={() => events.simulate('tone')}>Sim: dial tone</button>
+        </div>
         <ol>
           {call.transcript.map((u) => (
             <li key={u.seq}>
@@ -158,6 +211,17 @@ export function SummaryRoute() {
   const call = useCallContext();
   // Before any call (e.g. in the schematic) the screen shows its sample data.
   return <E6Summary risk={call.callId ? call.risk : undefined} familyPhone={loadSettings().family.find((c) => c.phone)?.phone} onDone={() => nav(FLOW.idle)} />;
+}
+
+/** True once the app has been hidden while `active` (iOS suspends the mic in the background). */
+function useBackgroundedDuring(active: boolean) {
+  const visible = useVisible();
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    if (!active) setHidden(false);
+    else if (!visible) setHidden(true);
+  }, [active, visible]);
+  return hidden;
 }
 
 function useElapsed(since: number | null): number {

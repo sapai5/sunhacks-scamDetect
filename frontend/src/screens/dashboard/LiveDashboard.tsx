@@ -1,6 +1,7 @@
 // Shared layout for D1–D3 (Figma "ScamDetermine · Live call"): chart + transcript on the
 // left, Risk/Light + Stage/Tracker + one context card on the right.
 import { EvidenceChart, DashboardTopBar, StageTracker, Transcript, VerdictCard, VerifyCard } from '../../components/Dashboard';
+import { EventTimeline } from '../../components/CallEvents';
 import { clock, RiskLight } from '../../components/Risk';
 import type { CallSnapshot } from '../../lib/snapshot';
 import { stagesOf } from '../../lib/stages';
@@ -41,6 +42,7 @@ export function LiveDashboard({ call, card = 'auto', now }: LiveDashboardProps) 
           ) : (
             (card === 'verdict' || (card === 'auto' && risk?.reason)) && <VerdictCard reason={risk?.reason ?? ''} tactics={risk?.tactics ?? []} level={risk?.level ?? 'green'} />
           )}
+          <EventTimeline events={call.events ?? []} startedAt={call.startedAt ?? 0} />
         </div>
       </div>
     </div>

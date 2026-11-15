@@ -257,3 +257,150 @@
 .metric-tile__value { font-size: 40px; font-weight: 700; line-height: 1; }
 .metric-tile__label { font-size: 15px; color: var(--color-text); }
 .metric-tile__sub { font-size: 12px; color: var(--color-text-muted); }
+
+/* ---- InstallHint (not in Figma; E1 in a browser tab only) ------------------------------------ */
+.install-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  text-align: left;
+}
+.install-hint p { margin: 0; }
+.install-hint__text { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.install-hint__title { font-size: 15px; font-weight: 600; color: var(--color-text); }
+.install-hint__body { font-size: 14px; line-height: 20px; color: var(--color-text-muted); }
+.install-hint__icon { vertical-align: -3px; color: var(--color-verify); }
+.install-hint__actions { display: flex; align-items: center; gap: 4px; }
+.install-hint__install {
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  background: var(--color-verify);
+  color: var(--color-on-strong);
+  font: 600 14px var(--font-sans);
+}
+.install-hint__close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+/* ---- AgentPanel (call assistant, elder phone) ------------------------------------------------ */
+.agent-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 24px;
+  border-radius: var(--radius-card);
+  background: var(--color-verify-tint);
+  color: var(--color-on-verify);
+  animation: line-in 300ms ease-out;
+}
+.agent-panel[data-state='red'] { background: var(--color-danger-tint); color: var(--color-on-danger); }
+.agent-panel p { margin: 0; }
+.agent-panel__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.48px;
+  text-transform: uppercase;
+}
+.agent-panel__dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.agent-panel__dot.is-speaking { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .agent-panel__dot.is-speaking { animation: dot-pulse 0.9s ease-in-out infinite; }
+}
+@keyframes dot-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.5); } }
+.agent-panel__title { font-size: 28px; line-height: 34px; font-weight: 600; }
+.agent-panel__tip { font-size: 20px; line-height: 28px; color: var(--color-text); }
+.agent-panel__said {
+  font-size: 15px;
+  line-height: 22px;
+  font-style: italic;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+/* ---- IntelCard (dashboard, family summary) --------------------------------------------------- */
+.intel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  width: 100%;
+  animation: line-in 300ms ease-out;
+}
+.intel-card__eyebrow { color: var(--color-verify); white-space: normal; }
+.intel-card__list { display: grid; gap: 8px; margin: 0; }
+.intel-card__row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: baseline; }
+.intel-card__row dt { font-size: 13px; color: var(--color-text-muted); }
+.intel-card__row dd { margin: 0; font-size: 16px; line-height: 22px; color: var(--color-text); }
+.intel-card__notes { margin: 0; padding-left: 18px; font-size: 14px; line-height: 20px; color: var(--color-on-danger); }
+.intel-card--compact { padding: 16px; background: var(--color-surface); border: 0; }
+.intel-card--compact .intel-card__row { grid-template-columns: 110px 1fr; }
+
+/* ---- Transcript: the assistant's own lines --------------------------------------------------- */
+.transcript-line--guard { background: var(--color-verify-tint); }
+.transcript-line--guard .transcript-line__speaker { color: var(--color-on-verify); }
+
+/* ---- CallEventSheet (hang-up / speaker prompts on the elder phone) --------------------------- */
+.event-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  max-width: 430px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px var(--gutter) calc(24px + env(safe-area-inset-bottom));
+  border-radius: 24px 24px 0 0;
+  background: var(--color-bg);
+  box-shadow: 0 -8px 32px rgb(17 24 39 / 0.18);
+  animation: sheet-in 260ms ease-out;
+}
+.event-sheet p { margin: 0; }
+.event-sheet__title { font-size: 26px; line-height: 32px; font-weight: 600; color: var(--color-text); }
+.event-sheet[data-kind='keep_on_speaker'] .event-sheet__title { color: var(--color-on-danger); }
+.event-sheet__body { font-size: 19px; line-height: 27px; color: var(--color-text-muted); }
+.event-sheet__actions { display: flex; flex-direction: column; gap: 10px; }
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+
+/* ---- EventTimeline (dashboard) --------------------------------------------------------------- */
+.event-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  width: 100%;
+}
+.event-timeline p { margin: 0; }
+.event-timeline__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.event-timeline__item { display: grid; grid-template-columns: 48px 12px 1fr; gap: 10px; align-items: baseline; }
+.event-timeline__time { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-muted); }
+.event-timeline__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-listening); align-self: center; }
+.event-timeline__item[data-type='hangup'] .event-timeline__dot { background: var(--color-text); }
+.event-timeline__item[data-type='speaker_off'] .event-timeline__dot,
+.event-timeline__item[data-type='off_speaker_requested'] .event-timeline__dot { background: var(--color-danger); }
+.event-timeline__item[data-type='speaker_on'] .event-timeline__dot { background: var(--color-safe); }
+.event-timeline__text { display: flex; flex-direction: column; gap: 2px; font-size: 15px; color: var(--color-text); }
+.event-timeline__meta { font-size: 12px; color: var(--color-text-muted); }

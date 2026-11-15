@@ -79,11 +79,52 @@ returns `risk` (0–100) and nine `tactics`. The app bridges them (`lib/stages.t
 - "Checking" (E4, blue) is yellow + `action: ask_verification`; the elder asks the question and taps
   Yes / No (there is no backend text-to-speech).
 
+## Mobile PWA
+
+Install: open the Vercel URL on the phone. **iPhone:** Safari → Share → Add to Home Screen (E1 shows
+these steps). **Android:** Chrome shows an Install button on E1. The mic needs HTTPS, so use the Vercel
+URL, not a LAN IP.
+
+| What | Where |
+|---|---|
+| Manifest, icons (192 / 512 / maskable / 180 apple-touch) | `public/manifest.webmanifest`, `public/icons/` (regenerate: `node scripts/gen-icons.mjs`) |
+| Service worker: offline shell, cached assets + fonts; never caches Lambda calls | `public/sw.js` (production builds only; bump `VERSION` to force a refresh) |
+| Screen stays on during a call (a locked screen stops the mic) | `useWakeLock` in `lib/pwa.ts` |
+| Sound on yellow / checking / red, vibration on Android (iOS has no vibration API) | `lib/alerts.ts`; audio is unlocked by the tap that starts the call |
+| Status bar turns red on a scam | `useThemeColor` in `lib/pwa.ts` (Android Chrome; iOS mostly ignores it when installed) |
+| Warning if the app was backgrounded mid-call (iOS pauses the mic) | `useBackgroundedDuring` in `flow/routes.tsx` |
+| Install card | `components/InstallHint.tsx`, on E1 |
+| Short-phone layout (call screens fit 667px without scrolling), no zoom / bounce, safe areas | `styles/global.css` |
+| Dev panel hidden when launched from the Home Screen | `@media (display-mode: standalone)` in `styles/global.css` |
+
+Limits: the phone running the app can't be the phone on the call (the call takes the mic). Run the
+app on a second device next to the speakerphone, foreground, screen on.
+
+## Hang-up and speakerphone detection
+
+The app sits next to the speakerphone, so it can't read the phone's call state; it infers it and
+asks the elder to confirm with one tap.
+
+| Signal | Event (POST `/events`) | Elder sees |
+|---|---|---|
+| Caller audio stops for 12 s | `speaker_off` (audio) | "We can't hear the caller": Yes, on speaker / I hung up |
+| Caller audio comes back, or elder confirms | `speaker_on` | sheet closes |
+| Dial / busy tone (350+440 / 480+620 Hz) | `hangup` after 8 s unless denied | "Did the call end? Ending in 8 s" |
+| 30 s of silence | `hangup` after 15 s unless denied | same |
+| Caller says "take me off speaker", "are you alone?" | `off_speaker_requested` (transcript) | "Keep them on speaker" |
+| Hang up / End call / "Yes, it ended" | `hangup` (elder) | summary |
+
+The Events Lambda texts the family when a yellow/red call goes off speaker (we can't hear it any
+more) and after a hang-up on a red call. Code: `lib/presence.ts`
+(detector, unit tested with synthetic audio), `lib/useCallEvents.ts`, `components/CallEvents.tsx`,
+`backend/lambda/events/`. In demo mode there's no mic: use the **Sim:** buttons in the dev panel.
+
 ## Live backend
 
 After `cd backend && npm run deploy`, `frontend/.env.local` gets `VITE_REGION`,
-`VITE_CREDENTIALS_URL`, `VITE_ANALYZE_URL`, `VITE_AGENT_URL`. A live call **emails the family** once the
-elder starts going along with a red call.
+`VITE_CREDENTIALS_URL`, `VITE_ANALYZE_URL`, `VITE_AGENT_URL`, `VITE_EVENTS_URL`. A live call **emails the family** once the
+elder starts going along with a red call, and the Events Lambda alerts them on off-speaker / hang-up events during risky calls.
+Without `VITE_EVENTS_URL` events stay in the browser.
 
 ## Agent takeover
 
@@ -97,5 +138,5 @@ caller replies to the agent. Without `VITE_AGENT_URL` (or with `?mock`) the agen
 ## Vercel
 
 `vercel.json` at the repo root handles the build. Import the repo in Vercel with the
-**Root Directory left as the repo root**. Add the four `VITE_*` env vars in project settings to
+**Root Directory left as the repo root**. Add the five `VITE_*` env vars in project settings to
 use the real backend; leave them out for a mock-mode deploy.

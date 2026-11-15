@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_ANALYZE_URL?: string;
   /** Agent Lambda URL. Without it, the takeover agent uses the local mock. */
   readonly VITE_AGENT_URL?: string;
+  /** Events Lambda URL (hang-up / speaker events, family follow-up texts). Without it, events stay local. */
+  readonly VITE_EVENTS_URL?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

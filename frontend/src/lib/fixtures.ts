@@ -86,6 +86,7 @@ const callBase: CallSnapshot = {
   latencyMs: 640,
   p95Ms: 910,
   agentStatus: 'idle',
+  events: [],
 };
 
 /** D1: mid-call, engine leaning scam, family question asked. */
@@ -98,6 +99,9 @@ export const SNAPSHOT_VERIFY: CallSnapshot = {
   view: 'red',
   verification: 'failed',
   history: [...callBase.history, { seq: 2, risk: 85, level: 'red', newTactics: [], note: 'wrong answer to family question' }],
+  events: [
+    { callId: 'c-4821', type: 'off_speaker_requested', source: 'transcript', level: 'yellow', at: T0 + 46_000, detail: '“Can you take me off speaker?”' },
+  ],
 };
 
 /** D3: Bedrock's verdict and reason for the current window. */
@@ -120,5 +124,9 @@ export const SNAPSHOT_DONE: CallSnapshot = {
     ...callBase.history,
     { seq: 3, risk: 70, level: 'yellow', newTactics: ['payment_request'] },
     { seq: 4, risk: 92, level: 'red', newTactics: ['gift_cards'] },
+  ],
+  events: [
+    { callId: 'c-4821', type: 'off_speaker_requested', source: 'transcript', level: 'yellow', at: T0 + 46_000, detail: '“Can you take me off speaker?”' },
+    { callId: 'c-4821', type: 'hangup', source: 'elder', level: 'red', at: T0 + 140_000, detail: 'Elder ended the call', notified: true },
   ],
 };

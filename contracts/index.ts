@@ -112,3 +112,44 @@ export interface AgentResponse {
   /** True if this response emailed the family a summary. */
   familyNotified: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Call events: hang-up and speakerphone detection (Events Lambda contracts).
+// The app runs on a device NEXT TO the speakerphone, so it can't read the phone's call
+// state. Events are inferred from the mic (tones, silence), from what the caller says,
+// or reported by the elder with a tap.
+// ---------------------------------------------------------------------------
+
+export const CALL_EVENT_TYPES = [
+  /** The call ended (elder tapped Hang up / confirmed, or a dial/busy tone was heard). */
+  'hangup',
+  /** The caller can no longer be heard: probably taken off speaker (or on hold). */
+  'speaker_off',
+  /** Caller audio is back after a speaker_off. */
+  'speaker_on',
+  /** The caller asked to be taken off speaker / asked if anyone else is listening (isolation tactic). */
+  'off_speaker_requested',
+] as const;
+export type CallEventType = (typeof CALL_EVENT_TYPES)[number];
+
+/** Who noticed: the elder (tap), the mic analyser, or the transcript. */
+export type CallEventSource = 'elder' | 'audio' | 'transcript';
+
+export interface CallEvent {
+  callId: string;
+  type: CallEventType;
+  source: CallEventSource;
+  /** Risk level when it happened: decides whether the family is texted. */
+  level: Level;
+  at: number;
+  /** Short human detail, e.g. "dial tone heard", "No audio for 12 s". */
+  detail?: string;
+}
+
+/** POST body for the Events Lambda. */
+export type CallEventRequest = CallEvent;
+
+export interface CallEventResponse {
+  /** True when the family was texted about this event. */
+  notified: boolean;
+}
