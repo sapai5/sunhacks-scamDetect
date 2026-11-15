@@ -5,6 +5,7 @@ import { Construct } from 'constructs';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -82,7 +83,8 @@ export class BridgeStack extends cdk.Stack {
       runtimePlatform: { cpuArchitecture: ecs.CpuArchitecture.X86_64, operatingSystemFamily: ecs.OperatingSystemFamily.LINUX },
     });
     taskDef.addContainer('bridge', {
-      image: ecs.ContainerImage.fromAsset(path.join(here, '../..'), { file: 'backend/twilio/Dockerfile' }),
+      // The task runs on x86_64: build for it even on an Apple Silicon laptop (otherwise the container can't start).
+      image: ecs.ContainerImage.fromAsset(path.join(here, '../..'), { file: 'backend/twilio/Dockerfile', platform: Platform.LINUX_AMD64 }),
       portMappings: [{ containerPort: 8080 }],
       environment: {
         AWS_REGION: this.region,

@@ -13,10 +13,12 @@ type Twiml = InstanceType<typeof VoiceResponse>;
 /**
  * Ring the elder. `callerId` must be the trial account's assigned number on trial accounts.
  * `action`: fetched for the caller's next TwiML when the forwarding ends (see screenedCall).
+ * `legUrl`: Twilio posts there when the elder answers, which tells us the call SID of the elder's leg.
  */
-function dialElder(r: Twiml, elderPhone: string, callerId?: string, action?: string) {
+function dialElder(r: Twiml, elderPhone: string, callerId?: string, action?: string, legUrl?: string) {
   const dial = r.dial({ ...(callerId ? { callerId } : {}), ...(action ? { action } : {}) });
-  dial.number(elderPhone);
+  if (legUrl) dial.number({ statusCallback: legUrl, statusCallbackEvent: ['answered'] }, elderPhone);
+  else dial.number(elderPhone);
 }
 
 /** Trusted caller: ring the elder directly, no streaming or analysis. */
@@ -42,12 +44,14 @@ export function screenedCall(opts: {
    * stream, which ends the <Dial>; this URL then moves the caller there too, so nobody is dropped.
    */
   afterDialUrl?: string;
+  /** Twilio posts here when the elder answers. The takeover needs the elder's leg to keep them on the line. */
+  elderLegUrl?: string;
 }): string {
   const r = new VoiceResponse();
   const stream = r.start().stream({ url: opts.mediaUrl, track: 'both_tracks' });
   stream.parameter({ name: 'token', value: opts.token });
   stream.parameter({ name: 'callSid', value: opts.callSid });
-  dialElder(r, opts.elderPhone, opts.callerId, opts.afterDialUrl);
+  dialElder(r, opts.elderPhone, opts.callerId, opts.afterDialUrl, opts.elderLegUrl);
   return r.toString();
 }
 

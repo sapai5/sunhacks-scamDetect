@@ -87,6 +87,8 @@ describe('TwiML', () => {
   it('sends the caller to the after-dial URL when the forwarding ends, so a takeover can keep both on the line', () => {
     const x = screenedCall({ mediaUrl: 'wss://h/media', token: 'tok', callSid: 'CA1', elderPhone: '+19715550100', afterDialUrl: 'https://h/after/CA1/tok' });
     expect(x).toContain('<Dial action="https://h/after/CA1/tok"><Number>+19715550100</Number></Dial>');
+    const y = screenedCall({ mediaUrl: 'wss://h/media', token: 'tok', callSid: 'CA1', elderPhone: '+19715550100', elderLegUrl: 'https://h/leg/CA1/tok' });
+    expect(y).toContain('<Number statusCallback="https://h/leg/CA1/tok" statusCallbackEvent="answered">+19715550100</Number>');
     expect(sayAndHangUp('I ended the call.')).toMatch(/<Say[^>]*>I ended the call\.<\/Say><Hangup\/>/);
   });
 

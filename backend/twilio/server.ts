@@ -194,14 +194,15 @@ async function onVoice(params: Record<string, string>, res: ServerResponse) {
   const mediaUrl = `${cfg.publicUrl.replace(/^http/, 'ws')}/media`;
   // Forward to the elder. On trial accounts the caller ID must be the assigned trial number.
   const afterDialUrl = `${cfg.publicUrl}/after/${callSid}/${call.token}`;
-  send(res, 200, screenedCall({ mediaUrl, token: call.token, callSid, elderPhone: cfg.elderPhone, callerId: cfg.dialFrom, afterDialUrl }));
+  const elderLegUrl = `${cfg.publicUrl}/leg/${callSid}/${call.token}`;
+  send(res, 200, screenedCall({ mediaUrl, token: call.token, callSid, elderPhone: cfg.elderPhone, callerId: cfg.dialFrom, afterDialUrl, elderLegUrl }));
 }
 
 /** Our own TwiML URLs during a takeover. The call's token in the path authorizes them. */
 const turnUrl = (call: Call, id: string) => `${cfg.publicUrl}/turn/${call.callSid}/${call.token}/${id}`;
 const idleUrl = (call: Call) => `${cfg.publicUrl}/idle/${call.callSid}/${call.token}`;
 
-function onCallTwiml(path: string, res: ServerResponse) {
+function onCallTwiml(path: string, params: Record<string, string>, res: ServerResponse) {
   const [, kind, sid, token, id] = path.split('/');
   const call = sid ? calls.get(sid) : undefined;
   // Always 200: an error status makes Twilio play its "application error" message.
@@ -210,11 +211,21 @@ function onCallTwiml(path: string, res: ServerResponse) {
     return send(res, 200, hangup());
   }
   if (kind === 'idle') return send(res, 200, idle(idleUrl(call)));
+  if (kind === 'leg') {
+    // The elder answered: this is the call SID of their leg, which a takeover moves to the agent stream.
+    // (Looking it up with the REST API by parent call doesn't work on this account: the list comes back empty.)
+    if (params.CallSid && params.CallSid !== call.callSid) {
+      call.elderSid = params.CallSid;
+      log(call.callSid, 'elder answered', { leg: params.CallSid.slice(-6), status: params.CallStatus });
+    }
+    return send(res, 204, '');
+  }
   if (kind === 'after') {
     // The <Dial> to the elder ended. During a takeover that's us moving the elder's leg to the agent
     // stream, and the caller follows; otherwise the elder hung up or didn't answer.
     const twiml = call.callerTwiml;
     call.callerTwiml = undefined;
+    log(call.callSid, 'forwarding ended', { dial: params.DialCallStatus, then: twiml ? 'caller joins the agent stream' : 'hang up' });
     return send(res, 200, twiml ?? hangup());
   }
   const twiml = id ? turns.get(id) : undefined;
@@ -233,7 +244,7 @@ createServer(async (req, res) => {
     // Twilio sends POST form bodies by default; GET puts the same params in the query (signed with the full URL).
     const params = req.method === 'POST' ? await readForm(req) : {};
 
-    if (path.startsWith('/turn/') || path.startsWith('/idle/') || path.startsWith('/after/')) return onCallTwiml(path, res);
+    if (/^\/(turn|idle|after|leg)\//.test(path)) return onCallTwiml(path, params, res);
 
     if (!DRY_RUN && !fromTwilio(req, params)) {
       console.warn(
@@ -645,11 +656,15 @@ async function startSonicTakeover(call: Call) {
     // The elder's leg of the forwarded call is a call of its own. Move it to the agent stream first:
     // that ends the caller's <Dial> without hanging anyone up, and Twilio fetches the caller's next
     // TwiML from the <Dial>'s action URL (/after), which is the same opening line and stream.
-    const [elder] = await tw.calls.list({ parentCallSid: call.callSid, status: 'in-progress', limit: 1 });
-    if (!elder) return void (await tw.calls(call.callSid).update({ url: url(twiml('caller')) })); // nobody to keep on the line
-    call.elderSid = elder.sid;
+    // Its SID comes from Twilio when the elder answers (/leg); the REST lookup is only a second try.
+    call.elderSid ??= (await tw.calls.list({ parentCallSid: call.callSid, status: 'in-progress', limit: 1 }))[0]?.sid;
+    if (!call.elderSid) {
+      log(call.callSid, "the elder's leg is unknown: the agent talks to the caller alone");
+      return void (await tw.calls(call.callSid).update({ url: url(twiml('caller')) }));
+    }
+    log(call.callSid, 'three-way call: moving the elder to the agent stream', { leg: call.elderSid.slice(-6) });
     call.callerTwiml = twiml('caller');
-    await tw.calls(elder.sid).update({ url: url(twiml('elder')) });
+    await tw.calls(call.elderSid).update({ url: url(twiml('elder')) });
     setTimeout(() => {
       // Twilio didn't ask for it: move the caller ourselves.
       if (!call.callerTwiml || !calls.has(call.callSid)) return;
