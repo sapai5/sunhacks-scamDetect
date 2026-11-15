@@ -89,11 +89,13 @@ export interface RiskState {
  * callId is the Amazon Connect ContactId. speaker comes from the KVS audio track,
  * so it's exact: "caller" = from customer (the person who dialed in),
  * "elder" = to customer (what the caller hears, i.e. the elder's phone).
+ * "agent" = a line the takeover agent spoke into the call: recorded (the app shows it), never scored.
  * Direct Lambda invoke. IngestFn orders sentences by arrival (seq is ignored, ts defaults to now)
- * and returns the call's new RiskState, or null while the agent has the call.
+ * and returns the call's new RiskState, or null while the agent has the call or for agent lines.
+ * The front end that runs the agent owns Calls.agentStatus; see backend/lambda/ingest/index.ts.
  */
 export interface IngestRequest extends Utterance {
-  speaker: 'caller' | 'elder';
+  speaker: 'caller' | 'elder' | 'agent';
 }
 
 /** App -> Agent Lambda: the transcript so far, including the agent's own lines. */

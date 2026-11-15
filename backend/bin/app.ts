@@ -40,7 +40,6 @@ new DataStack(app, 'ScamShieldData', {
     family: [],
     trustedContacts: ctxList('trustedContacts'),
   },
-  phoneSpeakFn: ctx('phoneSpeakFn') || undefined,
 });
 
 // Stage 2 (Track A). Real phone numbers live in backend/local.config.json, which is gitignored

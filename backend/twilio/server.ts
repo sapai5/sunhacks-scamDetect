@@ -256,9 +256,10 @@ async function ingest(call: Call, req: IngestRequest) {
     const body = res.Payload ? new TextDecoder().decode(res.Payload) : 'null';
     if (res.FunctionError) throw new Error(`${res.FunctionError}: ${body.slice(0, 300)}`);
     const state = JSON.parse(body) as RiskState | null;
-    if (!state) return; // the agent has the call
+    if (!state) return; // the agent has the call, or this was the agent's own line
     log(call.callSid, 'risk', { level: state.level, risk: state.risk, tactics: state.tactics, elder: state.elderState, action: state.action });
-    if (state.action === 'agent_takeover' && call.agentStatus === 'idle') {
+    // Claim the call in Calls first: IngestFn pauses scoring and the app shows the takeover screen.
+    if (state.action === 'agent_takeover' && call.agentStatus === 'idle' && (await setAgentStatus(call, 'idle', 'active'))) {
       call.agentStatus = 'active';
       void agentTurn(call);
     }
@@ -294,15 +295,22 @@ async function agentTurn(call: Call) {
       return;
     }
 
+    // "Let me talk" in the app sets Calls.agentStatus to 'stopped': don't say another word.
+    if (await elderTookCallBack(call)) return handBack(call);
+
     if (a.say) {
-      call.utterances.push({ callId: call.callSid, elderId: cfg.elderId, speaker: 'agent', text: a.say, ts: Date.now(), seq: call.utterances.length });
+      const ts = Date.now();
+      const seq = call.utterances.length;
+      call.utterances.push({ callId: call.callSid, elderId: cfg.elderId, speaker: 'agent', text: a.say, ts, seq });
+      // Recorded through IngestFn (in order with the other sentences) so the app shows what the agent said.
+      call.ingestChain = call.ingestChain.then(() => ingest(call, { callId: call.callSid, elderId: cfg.elderId, speaker: 'agent', text: a.say, ts, seq }));
       await speak(call, a.say);
     }
     log(call.callSid, 'agent', { status: a.status, say: a.say });
-    if (a.status !== 'active') return await finishAgent(call, a.status, a.say);
+    if (a.status !== 'active') return await finishAgent(call, a.status, a.say, a.summary);
 
     clearTimeout(call.silenceTimer);
-    call.silenceTimer = setTimeout(() => void finishAgent(call, 'caller_left', ''), CALLER_SILENCE_MS);
+    call.silenceTimer = setTimeout(() => void finishAgent(call, 'caller_left', '', 'The caller went quiet after the takeover.'), CALLER_SILENCE_MS);
   } catch (err) {
     console.error('agent turn failed', err);
   } finally {
@@ -332,18 +340,51 @@ async function speak(call: Call, text: string) {
   await new Promise((r) => setTimeout(r, ms)); // let it finish before listening for the reply
 }
 
-async function finishAgent(call: Call, status: AgentStatus, lastLine: string) {
-  clearTimeout(call.agentTimer);
-  clearTimeout(call.silenceTimer);
-  call.agentStatus = status;
-  // Tell IngestFn: a verified caller can't push the call back to red; any other end stops re-takeover.
+/**
+ * Move Calls.agentStatus from -> to (with the takeover summary when it ends). Returns false if it
+ * wasn't `from`, e.g. the elder tapped "Let me talk" (stopped). IngestFn reads it: 'active' pauses
+ * scoring, and a verified caller can't push the call back to red.
+ */
+async function setAgentStatus(call: Call, from: AgentStatus, to: AgentStatus, summary?: string): Promise<boolean> {
   try {
     await ddb.send(
-      new UpdateCommand({ TableName: cfg.callsTable, Key: { callId: call.callSid }, UpdateExpression: 'SET agentStatus = :s', ExpressionAttributeValues: { ':s': status } }),
+      new UpdateCommand({
+        TableName: cfg.callsTable,
+        Key: { callId: call.callSid },
+        UpdateExpression: summary === undefined ? 'SET agentStatus = :to' : 'SET agentStatus = :to, agentSummary = :sum',
+        ConditionExpression: 'agentStatus = :from',
+        ExpressionAttributeValues: { ':from': from, ':to': to, ...(summary === undefined ? {} : { ':sum': summary }) },
+      }),
     );
+    return true;
   } catch (err) {
-    console.error('saving agent status failed', err);
+    if ((err as Error).name !== 'ConditionalCheckFailedException') console.error('saving agent status failed', err);
+    return false;
   }
+}
+
+async function elderTookCallBack(call: Call): Promise<boolean> {
+  const { Item } = await ddb.send(
+    new GetCommand({ TableName: cfg.callsTable, Key: { callId: call.callSid }, ProjectionExpression: 'agentStatus' }),
+  );
+  return Item?.agentStatus === 'stopped';
+}
+
+/** The elder took the call back: the agent goes quiet and her side is transcribed again. */
+function handBack(call: Call) {
+  clearTimeout(call.agentTimer);
+  clearTimeout(call.silenceTimer);
+  call.agentStatus = 'stopped';
+  call.mutedUntil = 0;
+  log(call.callSid, 'elder took the call back');
+}
+
+async function finishAgent(call: Call, status: AgentStatus, lastLine: string, summary: string) {
+  clearTimeout(call.agentTimer);
+  clearTimeout(call.silenceTimer);
+  // Only while the agent still has the call: if the elder took it back, that wins.
+  if (!(await setAgentStatus(call, 'active', status, summary))) return handBack(call);
+  call.agentStatus = status;
   log(call.callSid, 'agent finished', { status });
   // Scam confirmed: after the goodbye, end the call for everyone.
   if (status === 'scam_confirmed' && !DRY_RUN) {
