@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Scam Shield: Backend status and split</title>
+<style>
+  @page { size: Letter; margin: 0.6in 0.65in; }
+  body { font-family: "Segoe UI", Inter, system-ui, sans-serif; font-size: 10pt; line-height: 1.38; color: #111827; margin: 0; }
+  h1 { font-size: 19pt; margin: 0 0 2px; font-weight: 650; }
+  .sub { color: #6b7280; margin: 0 0 14px; }
+  h2 { font-size: 12.5pt; margin: 16px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid #e5e7eb; }
+  h3 { font-size: 10.5pt; margin: 10px 0 4px; }
+  ul { margin: 0 0 6px; padding-left: 17px; }
+  li { margin: 1.5px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 9.2pt; }
+  th, td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid #e5e7eb; }
+  th { background: #f3f4f6; font-weight: 600; }
+  td.id { font-weight: 600; white-space: nowrap; width: 26px; }
+  td.t { white-space: nowrap; color: #6b7280; width: 46px; }
+  code { font-family: Consolas, "Roboto Mono", monospace; font-size: 8.8pt; background: #f3f4f6; padding: 0 3px; border-radius: 3px; }
+  .ok { color: #15803d; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+  .note { background: #f9fafb; border-left: 3px solid #9ca3af; padding: 6px 10px; margin: 8px 0; }
+  .page-break { break-before: page; }
+</style>
+</head>
+<body>
+
+<h1>Scam Shield: Backend status and split</h1>
+<p class="sub">SunHacks · repo <code>sapai5/sunhacks-scamDetect</code> · AWS us-east-1</p>
+
+<h2>Done</h2>
+<div class="grid">
+<div>
+<h3>Deployed in AWS (stack <code>ScamShieldStage1</code>)</h3>
+<ul>
+  <li><b>Credentials Lambda:</b> 15-minute browser credentials that can only open a Transcribe stream.</li>
+  <li><b>Analyze Lambda:</b> last 60 s of transcript → Claude Haiku 4.5 on Bedrock → light rules → family email.</li>
+  <li><b>Agent Lambda:</b> speaks as "Mike, her son", asks the family question or for a callback number, then hands back or ends the call.</li>
+  <li><b>SNS family alerts</b> by email (US SMS needs a registered number, up to 15 business days).</li>
+  <li><b>Amplify hosting</b> for the web app, with deep links working.</li>
+</ul>
+</div>
+<div>
+<h3>Behavior</h3>
+<ul>
+  <li>Light: red needs 2+ tactics; it drops only after two calm results in a row.</li>
+  <li>Family is emailed when the call is red <i>and</i> the elder starts going along.</li>
+  <li>Agent takes over when the elder is clearly complying; "Let me talk" stops it.</li>
+  <li>Transcribe speaker labels on; the mic sends silence while the agent speaks.</li>
+  <li>React frontend from Figma merged, with an E7 takeover screen and offline mocks.</li>
+</ul>
+</div>
+</div>
+
+<table>
+  <tr><th>Test script (live backend)</th><th>Result</th></tr>
+  <tr><td>Grandparent scam</td><td><span class="ok">Pass</span> · alert, takeover, scam confirmed</td></tr>
+  <tr><td>Real grandson asking for money</td><td><span class="ok">Pass</span> · alert, takeover, verified ("Biscuit")</td></tr>
+  <tr><td>Tech support scam</td><td><span class="ok">Pass</span> · alert, takeover, scam confirmed</td></tr>
+  <tr><td>Bank reminder · grandkid saying hi</td><td><span class="ok">Pass</span> · stayed green, no alert</td></tr>
+</table>
+<p>Latency: about 0.8 to 1.6 s per sentence for Analyze, and 1 to 2.5 s per agent turn. 27 unit tests pass.</p>
+
+<h2>Left to do</h2>
+<ul>
+  <li><b>Not tested yet:</b> real mic on a speakerphone call, the agent's voice and mic muting in a browser, the iPhone.</li>
+  <li><b>Stage 1 gaps:</b> onboarding settings don't reach the backend (it still reads <code>cdk.json</code>); Lambda URLs accept any website; prompt not tested on hard legit calls; tech support script turns red on its first line.</li>
+  <li><b>Stage 2:</b> Connect number with the contacts check, transcriber from Kinesis Video Streams, DynamoDB call state, WebSocket push.</li>
+  <li><b>Open questions:</b> does Connect keep both audio tracks after a transfer to the iPhone? Can Connect play the agent's voice into a live call?</li>
+  <li><b>Long lead:</b> submit the toll-free SMS registration today.</li>
+  <li><b>Stretch (Stage 3):</b> SQS FIFO + DLQs, Cognito logins, CloudWatch metrics.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>Split</h2>
+<p><b>Kickoff together (30 min):</b> add <code>IngestRequest</code> to <code>contracts/index.ts</code>. The transcriber sends each finished sentence to <code>IngestFn</code> with <code>callId</code> = Connect contact ID and <code>speaker</code> = <code>caller</code> or <code>elder</code>. Each track works in its own CDK stack; edit shared files only during the kickoff. Create a separate IAM user for the teammate.</p>
+
+<h3>Track A · Phone path (Sahil) · <code>lib/telephony-stack.ts</code>, <code>telephony/</code></h3>
+<table>
+  <tr><th></th><th>Task</th><th>Done when</th><th>Time</th></tr>
+  <tr><td class="id">A1</td><td>Connect instance + number; flow: media streaming → transfer to iPhone</td><td>KVS shows both audio tracks during a transferred call (else: softphone fallback)</td><td class="t">1 h</td></tr>
+  <tr><td class="id">A2</td><td>Contacts check: known numbers skip streaming (env list until B1)</td><td>A listed number skips streaming; others stream</td><td class="t">1 h</td></tr>
+  <tr><td class="id">A3</td><td>Transcriber: KVS → Transcribe → <code>IngestFn</code>, from AWS's Connect sample</td><td>A real call puts sentences into the logs</td><td class="t">3–4 h</td></tr>
+  <tr><td class="id">A4</td><td>Spike: can Connect play the agent's voice into the call?</td><td>Written yes/no with the approach</td><td class="t">1 h</td></tr>
+</table>
+
+<h3>Track B · Call state, settings, push (teammate) · <code>lib/data-stack.ts</code>, <code>lambda/{settings,ingest,push}</code></h3>
+<table>
+  <tr><th></th><th>Task</th><th>Done when</th><th>Time</th></tr>
+  <tr><td class="id">B6</td><td>Lock CORS to the Amplify, Vercel and localhost origins</td><td>Other origins are blocked; the app still works</td><td class="t">15 min</td></tr>
+  <tr><td class="id">B1</td><td>DynamoDB <code>Elders</code> + <code>Calls</code> (24 h TTL, stream on); seed <code>e-01</code></td><td>Both tables deployed, <code>e-01</code> seeded</td><td class="t">1 h</td></tr>
+  <tr><td class="id">B2</td><td>Settings API; Analyze and Agent read settings from <code>Elders</code></td><td>Changing the question changes what the agent asks</td><td class="t">1.5 h</td></tr>
+  <tr><td class="id">B3</td><td><code>IngestFn</code>: server-side analyze sharing code with the Analyze Lambda</td><td>Test-script lines give the same levels as <code>scripts:run</code></td><td class="t">1.5 h</td></tr>
+  <tr><td class="id">B4</td><td>WebSocket API; <code>Calls</code> stream pushes <code>RiskState</code> to the app</td><td><code>wscat</code> receives updates while B3 runs</td><td class="t">2 h</td></tr>
+  <tr><td class="id">B5</td><td>Prompt tuning: 4–5 hard legit scripts; fix the early red</td><td>Every script passes</td><td class="t">ongoing</td></tr>
+</table>
+
+<h3>How the tracks connect</h3>
+<ul>
+  <li>The tracks only meet at <code>IngestFn</code>. A3 logs requests until B3 is deployed; B3 and B4 are tested with script lines until A3 is done.</li>
+  <li>A2 uses an env-var contacts list until B1 is done.</li>
+</ul>
+<div class="note"><b>Hour 13 is the feature freeze.</b> If A1 fails and the softphone fallback isn't working by then, drop Track A and spend the time on B5 and the demo. The speakerphone flow already works end to end.</div>
+
+</body>
+</html>

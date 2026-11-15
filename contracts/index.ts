@@ -84,6 +84,16 @@ export interface RiskState {
   familyAlerted: boolean;
 }
 
+/**
+ * Stage 2: Connect transcriber -> IngestFn, one per finished sentence.
+ * callId is the Amazon Connect ContactId. speaker comes from the KVS audio track,
+ * so it's exact: "caller" = from customer (the person who dialed in),
+ * "elder" = to customer (what the caller hears, i.e. the elder's phone).
+ */
+export interface IngestRequest extends Utterance {
+  speaker: 'caller' | 'elder';
+}
+
 /** App -> Agent Lambda: the transcript so far, including the agent's own lines. */
 export interface AgentRequest {
   callId: string;
