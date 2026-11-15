@@ -32,7 +32,7 @@ contracts/  Shared TypeScript types (Utterance, AnalyzeRequest, RiskState, Agent
 | Elders table | DynamoDB `ScamShieldElders` (Data stack) | One item per elder: settings, trusted contacts, open push sockets. `e-01` is seeded from `cdk.json` on first deploy |
 | Calls table | DynamoDB, 24 h TTL, stream on | Phone-path call state: transcript, last RiskState, verification, alert and agent flags |
 | Settings Lambda | Function URL (GET/PUT) | GET never returns the verification answer. Only seeded elders can be updated |
-| Ingest Lambda | Direct invoke only | Track A's transcriber calls it per sentence (`IngestRequest`). Alerts once per call via a conditional write |
+| Ingest Lambda | Direct invoke only | Track A's transcriber calls it per sentence (`IngestRequest`). Alerts once per call via a conditional write. No phone agent yet (A4): an `agent_takeover` result is pushed to the app and scoring continues |
 | Push | API Gateway WebSocket (`wss://…/live?elderId=e-01`) + Push Lambda on the Calls stream | Sends each new RiskState as JSON. Rejects origins outside the CORS list |
 
 Elder settings (name, verification question and answer, agent persona) live in the Elders table; onboarding saves them through the Settings API. The Analyze, Agent and Ingest Lambdas read them on each request and fall back to the `backend/cdk.json` values (passed as env vars) if the table or item is missing. Alerts still go to the SNS topic's subscribers (`familyEmail`). The values in the repo are demo data.

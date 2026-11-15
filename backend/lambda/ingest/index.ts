@@ -100,13 +100,14 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
 
   // 4. Save, unless a later sentence was already scored.
   // ponytail: overlapping sentences are scored from the same previous state; SQS FIFO per callId (Stage 3) serializes them.
-  const takeover = state.action === 'agent_takeover';
+  // agentStatus stays as it is: there's no phone agent yet (A4), so an agent_takeover result is only pushed
+  // to the app and scoring goes on. The phone agent loop sets agentStatus to 'active' when it takes the call.
   const saved = await update({
     Key,
-    UpdateExpression: `SET #state = :s, analyzedSeq = :seq${takeover ? ', agentStatus = :active' : ''}`,
+    UpdateExpression: 'SET #state = :s, analyzedSeq = :seq',
     ConditionExpression: 'attribute_not_exists(analyzedSeq) OR analyzedSeq < :seq',
     ExpressionAttributeNames: { '#state': 'state' },
-    ExpressionAttributeValues: { ':s': state, ':seq': seq, ...(takeover ? { ':active': 'active' } : {}) },
+    ExpressionAttributeValues: { ':s': state, ':seq': seq },
   });
 
   console.log(
