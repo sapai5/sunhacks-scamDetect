@@ -87,8 +87,8 @@ URL, not a LAN IP.
 
 | What | Where |
 |---|---|
-| Manifest, icons (192 / 512 / maskable / 180 apple-touch) | `public/manifest.webmanifest`, `public/icons/` (regenerate: `node scripts/gen-icons.mjs`) |
-| Service worker: offline shell, cached assets + fonts; never caches Lambda calls | `public/sw.js` (production builds only; bump `VERSION` to force a refresh) |
+| Manifest, icons (192 / 512 / maskable / 180 apple-touch) | `public/manifest.webmanifest`, `public/icons/` (regenerate: `npm run icons -w frontend`, source `scripts/gen-icons.ts`) |
+| Service worker: offline shell, cached assets + fonts; never caches Lambda calls | `src/sw.ts`, built to `dist/sw.js` as its own Vite entry (production builds only; bump `VERSION` to force a refresh) |
 | Screen stays on during a call (a locked screen stops the mic) | `useWakeLock` in `lib/pwa.ts` |
 | Sound on yellow / checking / red, vibration on Android (iOS has no vibration API) | `lib/alerts.ts`; audio is unlocked by the tap that starts the call |
 | Status bar turns red on a scam | `useThemeColor` in `lib/pwa.ts` (Android Chrome; iOS mostly ignores it when installed) |

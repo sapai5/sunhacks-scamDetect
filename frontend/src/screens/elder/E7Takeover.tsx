@@ -36,7 +36,7 @@ export default function E7Takeover({ agentStatus = 'active', speaking = true, su
       )}
       {agentStatus !== 'active' && (
         <BigButton kind="hangup" onClick={onEnd}>
-          Hang up
+          I hung up
         </BigButton>
       )}
     </CallLayout>

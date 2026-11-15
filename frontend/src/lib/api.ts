@@ -1,5 +1,14 @@
 // The backend endpoints. See contracts/index.ts for the shapes.
-import type { AgentRequest, AgentResponse, AnalyzeRequest, CallEventRequest, CallEventResponse, RiskState } from '../../../contracts/index.js';
+import type {
+  AgentRequest,
+  AgentResponse,
+  AnalyzeRequest,
+  CallEventRequest,
+  CallEventResponse,
+  PushMessage,
+  PushStopAgent,
+  RiskState,
+} from '../../../contracts/index.js';
 import { mockAgent } from './mockAgent';
 import { mockAnalyze } from './mockAnalyze';
 import type { Settings } from './settings';
@@ -96,25 +105,28 @@ export async function syncSettings(s: Settings): Promise<boolean> {
   }
 }
 
+/** The open push socket, for sending "Let me talk" back. */
+let pushSocket: WebSocket | undefined;
+
 /**
- * Phone path: the backend pushes each new RiskState for the elder's phone calls over a WebSocket.
- * Calls onState for each one and reconnects whenever the socket closes (API Gateway drops idle
- * sockets after 10 minutes). Returns a function that closes it. Off without VITE_PUSH_URL or with ?mock.
+ * Phone path: the backend pushes each phone call's RiskState and phone agent progress over a
+ * WebSocket. Calls onMessage for each one and reconnects whenever the socket closes (API Gateway
+ * drops idle sockets after 10 minutes). Returns a function that closes it. Off without VITE_PUSH_URL or with ?mock.
  */
-export function listenForPhoneCalls(elderId: string, onState: (s: RiskState) => void): () => void {
+export function listenForPhoneCalls(elderId: string, onMessage: (m: PushMessage) => void): () => void {
   if (!PUSH_URL || FORCE_MOCK) return () => {};
-  let ws: WebSocket | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let closed = false;
   const open = () => {
-    ws = new WebSocket(`${PUSH_URL}?elderId=${encodeURIComponent(elderId)}`);
+    const ws = (pushSocket = new WebSocket(`${PUSH_URL}?elderId=${encodeURIComponent(elderId)}`));
     ws.onmessage = (e) => {
+      let m: PushMessage;
       try {
-        const s = JSON.parse(e.data) as RiskState;
-        if (typeof s.callId === 'string' && s.level) onState(s);
+        m = JSON.parse(e.data);
       } catch {
-        /* not a RiskState */
+        return; // not JSON
       }
+      if (typeof m.callId === 'string' && m.level) onMessage(m);
     };
     ws.onclose = () => {
       if (!closed) retry = setTimeout(open, 5_000);
@@ -124,6 +136,14 @@ export function listenForPhoneCalls(elderId: string, onState: (s: RiskState) => 
   return () => {
     closed = true;
     clearTimeout(retry);
-    ws?.close();
+    pushSocket?.close();
+    pushSocket = undefined;
   };
+}
+
+/** "Let me talk" on a phone call: the server's agent stops and scoring resumes. Returns false if the socket isn't open. */
+export function stopPhoneAgent(callId: string): boolean {
+  if (pushSocket?.readyState !== WebSocket.OPEN) return false;
+  pushSocket.send(JSON.stringify({ action: 'stopAgent', callId } satisfies PushStopAgent));
+  return true;
 }

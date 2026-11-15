@@ -20,9 +20,10 @@ export const PHONE_CALL_QUIET_MS = 60_000;
 /**
  * What a RiskState pushed for a phone call does to the call on screen:
  * - 'new': start showing it (nothing running, or the phone call on screen has gone quiet)
- * - 'update': it's the call on screen and newer than what's shown
+ * - 'update': it's the call on screen, with a newer or the same RiskState (agent progress
+ *   arrives with the RiskState unchanged)
  * - 'ignore': a speakerphone/demo call is running, another phone call is still active,
- *   the elder already ended this call, or it's stale
+ *   the elder already ended this call, or it's an older RiskState
  */
 export function pushedStateEffect(
   current: { callId: string; running: boolean; phone: boolean; risk: RiskState | null },
@@ -35,7 +36,7 @@ export function pushedStateEffect(
     const quiet = !current.risk || next.updatedAt - current.risk.updatedAt > PHONE_CALL_QUIET_MS;
     return quiet ? 'new' : 'ignore';
   }
-  if (!current.running || (current.risk && next.updatedAt <= current.risk.updatedAt)) return 'ignore';
+  if (!current.running || (current.risk && next.updatedAt < current.risk.updatedAt)) return 'ignore';
   return 'update';
 }
 

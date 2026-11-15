@@ -1,6 +1,11 @@
 // Service worker: makes the installed app open instantly and survive flaky venue Wi-Fi.
 // Caches only GET requests for the app shell, built assets, icons and fonts.
 // Never touches the Lambda calls (POST) or Transcribe (WebSocket): those always go to the network.
+// Built by Vite as its own entry to dist/sw.js (vite.config.ts); typechecked with tsconfig.sw.json.
+// A module (export {}) so this `self` shadows the global one; the built file has no imports or exports.
+export {};
+declare const self: ServiceWorkerGlobalScope;
+
 const VERSION = 'v1';
 const SHELL = `shell-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
@@ -30,10 +35,10 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(SHELL).then((c) => c.put('/', copy));
+          void caches.open(SHELL).then((c) => c.put('/', copy));
           return res;
         })
-        .catch(() => caches.match('/')),
+        .catch(() => caches.match('/').then((hit) => hit ?? Response.error())),
     );
     return;
   }
@@ -49,7 +54,7 @@ self.addEventListener('fetch', (e) => {
           fetch(req).then((res) => {
             if (res.ok || res.type === 'opaque') {
               const copy = res.clone();
-              caches.open(RUNTIME).then((c) => c.put(req, copy));
+              void caches.open(RUNTIME).then((c) => c.put(req, copy));
             }
             return res;
           }),

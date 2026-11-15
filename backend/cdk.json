@@ -11,6 +11,7 @@
     "familyPhone": "",
     "familyEmail": "sapai1@asu.edu",
     "webOrigins": ["http://localhost:5173", "http://localhost:4173"],
-    "trustedContacts": []
+    "trustedContacts": [],
+    "phoneSpeakFn": ""
   }
 }

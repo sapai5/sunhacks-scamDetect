@@ -1,13 +1,16 @@
 // IngestFn: the phone path's transcriber invokes this once per finished sentence (IngestRequest,
 // direct Lambda invoke). Call state lives in the Calls table instead of the browser; scoring is the
-// Analyze Lambda's code. Returns the new RiskState, or null while the agent has the call.
-// Each saved RiskState reaches the app through the Calls stream (push Lambda).
+// Analyze Lambda's code, and the phone agent is the Agent Lambda's code. Returns the new RiskState,
+// or null while the phone agent has the call (it answers the caller instead of scoring).
+// Each change reaches the app through the Calls stream (push Lambda).
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
-import type { AgentStatus, AnalyzeRequest, RiskState, Utterance, Verification } from '../../../contracts/index.js';
+import type { AgentStatus, AnalyzeRequest, ElderSettings, RiskState, Utterance, Verification } from '../../../contracts/index.js';
+import { agentReply, notifyFamily } from '../agent/turn.js';
 import { parseIngest } from '../analyze/rules.js';
 import { alertFamily, score } from '../analyze/score.js';
 import { ddb, loadElder } from '../shared/db.js';
+import { PHONE_AGENT, speakIntoCall } from '../shared/speak.js';
 
 const CALLS_TABLE = process.env.CALLS_TABLE!;
 const TTL_SECONDS = 24 * 3600;
@@ -16,9 +19,12 @@ const TTL_SECONDS = 24 * 3600;
 interface CallItem {
   callId: string;
   elderId: string;
+  /** Caller, elder and (phone agent) agent lines, in arrival order. */
   utterances: Pick<Utterance, 'speaker' | 'text' | 'ts'>[];
   verification: Verification;
   agentStatus: AgentStatus;
+  /** How the phone agent's takeover ended. */
+  agentSummary?: string;
   familyAlerted: boolean;
   /** Latest result; the stream pushes it to the app when it changes. */
   state?: RiskState;
@@ -27,6 +33,9 @@ interface CallItem {
   /** TTL, epoch seconds. */
   expiresAt: number;
 }
+
+const transcript = (c: CallItem): Utterance[] =>
+  c.utterances.map((u, i) => ({ ...u, callId: c.callId, elderId: c.elderId, seq: i }));
 
 /** UpdateItem on the Calls table. Returns false instead of throwing when the condition fails. */
 async function update(input: Omit<UpdateCommandInput, 'TableName'>): Promise<boolean> {
@@ -37,6 +46,43 @@ async function update(input: Omit<UpdateCommandInput, 'TableName'>): Promise<boo
     if (err instanceof ConditionalCheckFailedException) return false;
     throw err;
   }
+}
+
+/**
+ * One phone agent turn. The reply is saved and spoken only if no newer sentence arrived while it
+ * was being written (that sentence's own turn answers instead) and the elder hasn't taken the call back.
+ * ponytail: no turn happens if the caller goes silent; a timer (EventBridge Scheduler) would end it as caller_left.
+ */
+async function agentTurn(call: CallItem, elder: ElderSettings): Promise<void> {
+  const reply = await agentReply(transcript(call), elder);
+  const final = reply.status !== 'active';
+  const sets: string[] = [];
+  const values: Record<string, unknown> = { ':n': call.utterances.length, ':active': 'active' };
+  if (reply.say) {
+    sets.push('utterances = list_append(utterances, :a)');
+    values[':a'] = [{ speaker: 'agent', text: reply.say, ts: Date.now() }];
+  }
+  if (final) {
+    sets.push('agentStatus = :st', 'agentSummary = :sum');
+    Object.assign(values, { ':st': reply.status, ':sum': reply.summary });
+  }
+  if (!sets.length) return;
+  const saved = await update({
+    Key: { callId: call.callId },
+    UpdateExpression: `SET ${sets.join(', ')}`,
+    ConditionExpression: 'size(utterances) = :n AND agentStatus = :active',
+    ExpressionAttributeValues: values,
+  });
+  console.log(JSON.stringify({ callId: call.callId, agent: reply.status, spoken: saved && Boolean(reply.say) }));
+  if (!saved) return;
+  if (reply.say) {
+    try {
+      await speakIntoCall(call.callId, reply.say);
+    } catch (err) {
+      console.error('speak failed', err);
+    }
+  }
+  if (final) await notifyFamily(elder, reply);
 }
 
 export const handler = async (event: unknown): Promise<RiskState | null> => {
@@ -68,14 +114,18 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
   );
   const call = Attributes as CallItem;
   const seq = call.utterances.length - 1;
-  // Like the browser: no scoring while the agent is talking to the caller.
-  if (call.agentStatus === 'active') return null;
+
+  // The phone agent has the call: answer the caller instead of scoring (like the browser).
+  if (call.agentStatus === 'active') {
+    if (req.speaker === 'caller') await agentTurn(call, await loadElder(call.elderId));
+    return null;
+  }
 
   // 2. Same scoring as the Analyze Lambda, with the stored state in place of the browser's.
   const areq: AnalyzeRequest = {
     callId: call.callId,
     elderId: call.elderId,
-    utterances: call.utterances.map((u, i) => ({ ...u, callId: call.callId, elderId: call.elderId, seq: i })),
+    utterances: transcript(call),
     prevLevel: call.state?.level ?? 'green',
     calmStreak: call.state?.calmStreak ?? 0,
     verification: call.verification,
@@ -100,8 +150,6 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
 
   // 4. Save, unless a later sentence was already scored.
   // ponytail: overlapping sentences are scored from the same previous state; SQS FIFO per callId (Stage 3) serializes them.
-  // agentStatus stays as it is: there's no phone agent yet (A4), so an agent_takeover result is only pushed
-  // to the app and scoring goes on. The phone agent loop sets agentStatus to 'active' when it takes the call.
   const saved = await update({
     Key,
     UpdateExpression: 'SET #state = :s, analyzedSeq = :seq',
@@ -109,6 +157,20 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
     ExpressionAttributeNames: { '#state': 'state' },
     ExpressionAttributeValues: { ':s': state, ':seq': seq },
   });
+
+  // 5. Takeover: the phone agent claims the call (once) and says its first line. Without a way to
+  // speak into the call (PHONE_SPEAK_FN), the takeover result is only pushed to the app and scoring goes on.
+  const takeover =
+    saved &&
+    state.action === 'agent_takeover' &&
+    PHONE_AGENT &&
+    (await update({
+      Key,
+      UpdateExpression: 'SET agentStatus = :active',
+      ConditionExpression: 'agentStatus = :idle',
+      ExpressionAttributeValues: { ':active': 'active', ':idle': 'idle' },
+    }));
+  if (takeover) await agentTurn({ ...call, agentStatus: 'active' }, elder);
 
   console.log(
     JSON.stringify({
@@ -120,6 +182,7 @@ export const handler = async (event: unknown): Promise<RiskState | null> => {
       elderState: state.elderState,
       action: state.action,
       saved,
+      takeover,
       bedrockMs,
       totalMs: Date.now() - started,
     }),
