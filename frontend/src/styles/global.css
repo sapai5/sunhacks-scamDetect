@@ -1,0 +1,390 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: inherit;
+}
+
+/* Phone screens (elder, onboarding, family): 393 x 852 frames in Figma. */
+.layout-phone {
+  max-width: 430px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(16px + env(safe-area-inset-top)) var(--gutter) calc(24px + env(safe-area-inset-bottom));
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+/* Dashboard screens: 1440 x 900 frames in Figma, light grey background. */
+.layout-desktop {
+  min-height: 100dvh;
+  padding: 32px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ---------- Gallery: mirrors the Figma "03 Screens" canvas ---------- */
+.canvas {
+  min-height: 100dvh;
+  background: var(--color-canvas);
+  padding: 40px 0 64px;
+}
+.canvas-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 0 40px 8px;
+}
+.canvas-head h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.canvas-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+.chip::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, var(--color-listening));
+}
+.btn-live {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-on-strong);
+  background: var(--color-text);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+}
+
+.btn-ghost {
+  font: 600 14px var(--font-sans);
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+/* A row of sections that scrolls sideways, like panning the canvas. */
+.canvas-row {
+  display: flex;
+  gap: 80px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 32px 40px 16px;
+  scroll-padding: 40px;
+}
+.canvas-section h2 {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.canvas-frames {
+  display: flex;
+  gap: 40px;
+}
+.frame {
+  display: block;
+  flex: none;
+  text-decoration: none;
+  color: var(--color-text-muted);
+}
+.frame-name {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+  white-space: nowrap;
+}
+.frame-name b {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.frame-name .owner {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.frame-box {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--color-border);
+  transition: box-shadow 0.15s;
+}
+.frame:hover .frame-box,
+.frame:focus-visible .frame-box {
+  box-shadow: 0 0 0 2px var(--color-checking);
+}
+.frame-box iframe {
+  position: absolute;
+  inset: 0 auto auto 0;
+  border: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+/* ---------- Screen layouts (match the Figma frames) ---------- */
+
+/* In-call screens E1a–E5: header at 64, light at 142, panel at 460 in the 393x852 frame. */
+.screen-call {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding-top: 48px;
+}
+.button-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Centered text screens: E1 idle, E6 summary. */
+.screen-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding-top: 48px;
+  text-align: center;
+}
+.screen-title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+}
+.screen-lede {
+  margin: 0;
+  font-size: 22px;
+  line-height: 30px;
+  color: var(--color-text-muted);
+}
+.screen-note {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+.screen-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+.demo-scripts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  text-align: left;
+}
+.demo-script {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-field);
+  background: var(--color-bg);
+  font: 500 16px var(--font-sans);
+  color: var(--color-text);
+  text-align: left;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+/* Left-aligned form screens: O1–O3. */
+.screen-form {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-top: 48px;
+}
+.screen-heading {
+  margin: 0;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+}
+.screen-body {
+  margin: 0;
+  font-size: 20px;
+  line-height: 30px;
+  color: var(--color-text-muted);
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.screen-form .text-button {
+  align-self: flex-start;
+  padding: 0;
+}
+
+/* F1 SMS mock. */
+.screen-sms {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-top: 48px;
+}
+.sms-title,
+.sms-time {
+  margin: 0;
+  text-align: center;
+}
+.sms-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+.sms-time {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* F2 family summary. */
+.screen-family {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 48px;
+}
+.family-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.family-head__meta {
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+
+/* Dashboard D1–D5. */
+.dash {
+  max-width: 1376px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.dash-body {
+  display: grid;
+  grid-template-columns: minmax(0, 760fr) minmax(0, 560fr);
+  gap: 24px;
+  align-items: start;
+}
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.dash-light {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+.dash .stage-tracker {
+  background: transparent;
+}
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+}
+.dash-card {
+  padding: 24px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+.dash-card__title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.dash-card__sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.dash-card__plot {
+  min-height: 360px;
+}
+.call-grid {
+  display: grid;
+  grid-template-columns: repeat(50, 1fr);
+  gap: 13px 9px;
+  max-width: 1340px;
+}
+.call-grid__dot {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--color-safe);
+}
+.call-grid__dot[data-level='yellow'] {
+  background: var(--color-caution);
+}
+.call-grid__dot[data-level='red'] {
+  background: var(--color-danger);
+}
+@media (max-width: 900px) {
+  .dash-body {
+    grid-template-columns: 1fr;
+  }
+  .call-grid {
+    grid-template-columns: repeat(25, 1fr);
+  }
+}
+
+/* Live-call debug info (status, latency, transcript) under the elder screen. */
+.dev-panel {
+  margin-top: 32px;
+  font: 12px var(--font-mono);
+  color: var(--color-text-muted);
+}
+.dev-panel ol {
+  padding-left: 20px;
+  line-height: 1.6;
+}
+.dev-panel .partial {
+  opacity: 0.5;
+}

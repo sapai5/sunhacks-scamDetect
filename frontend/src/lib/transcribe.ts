@@ -17,7 +17,7 @@ class Tap extends AudioWorkletProcessor {
 registerProcessor('tap', Tap);`;
 
 export async function startTranscriber(events: TranscriberEvents): Promise<() => void> {
-  const credsRes = await fetch(import.meta.env.VITE_CREDENTIALS_URL, { method: 'POST' });
+  const credsRes = await fetch(import.meta.env.VITE_CREDENTIALS_URL!, { method: 'POST' });
   if (!credsRes.ok) throw new Error(`credentials: HTTP ${credsRes.status}`);
   const creds = await credsRes.json();
 
