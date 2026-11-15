@@ -143,3 +143,44 @@ export interface CallEventResponse {
   /** True when the family was texted about this event. */
   notified: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Stage 2 (Track B): server-side call state, elder settings, push.
+// ---------------------------------------------------------------------------
+
+/**
+ * Transcriber -> IngestFn (direct Lambda invoke), one finished sentence.
+ * IngestFn returns the call's new RiskState, or null while the agent has the call.
+ */
+export interface IngestRequest {
+  /** Connect contact ID. */
+  callId: string;
+  elderId: string;
+  speaker: 'caller' | 'elder';
+  text: string;
+  /** Epoch ms when the sentence ended. Defaults to now. */
+  ts?: number;
+}
+
+export interface Contact {
+  name: string;
+  phone: string;
+}
+
+/**
+ * One elder's settings (Elders table). Settings API: GET ?elderId= returns them without
+ * verificationAnswer; PUT {elderId, ...fields} updates the fields given.
+ * WebSocket push: connect with ?elderId=; each message is a RiskState (JSON) for one of the elder's calls.
+ */
+export interface ElderSettings {
+  elderId: string;
+  elderName: string;
+  verificationQuestion: string;
+  verificationAnswer: string;
+  agentName: string;
+  agentRelation: string;
+  /** Family contacts from onboarding. Alerts still go to the SNS topic's subscribers. */
+  family: Contact[];
+  /** E.164 numbers whose calls skip screening (Connect contacts check). */
+  trustedContacts: string[];
+}

@@ -1,11 +1,15 @@
 import * as cdk from 'aws-cdk-lib';
+import { DataStack } from '../lib/data-stack.js';
 import { Stage1Stack } from '../lib/stage1-stack.js';
 
 const app = new cdk.App();
 const ctx = (key: string): string => String(app.node.tryGetContext(key) ?? '');
+const ctxList = (key: string): string[] => app.node.tryGetContext(key) ?? [];
+const env = { account: process.env.CDK_DEFAULT_ACCOUNT, region: ctx('region') || 'us-east-1' };
+const eldersTableName = 'ScamShieldElders';
 
-new Stage1Stack(app, 'ScamShieldStage1', {
-  env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: ctx('region') || 'us-east-1' },
+const stage1 = new Stage1Stack(app, 'ScamShieldStage1', {
+  env,
   elderName: ctx('elderName'),
   verificationQuestion: ctx('verificationQuestion'),
   verificationAnswer: ctx('verificationAnswer'),
@@ -14,4 +18,24 @@ new Stage1Stack(app, 'ScamShieldStage1', {
   modelId: ctx('modelId'),
   familyPhone: ctx('familyPhone') || undefined,
   familyEmail: ctx('familyEmail') || undefined,
+  webOrigins: ctxList('webOrigins'),
+  eldersTableName,
+});
+
+new DataStack(app, 'ScamShieldData', {
+  env,
+  eldersTableName,
+  modelId: ctx('modelId'),
+  familyTopic: stage1.familyTopic,
+  webOrigins: stage1.webOrigins,
+  seed: {
+    elderId: 'e-01',
+    elderName: ctx('elderName'),
+    verificationQuestion: ctx('verificationQuestion'),
+    verificationAnswer: ctx('verificationAnswer'),
+    agentName: ctx('agentName'),
+    agentRelation: ctx('agentRelation'),
+    family: [],
+    trustedContacts: ctxList('trustedContacts'),
+  },
 });

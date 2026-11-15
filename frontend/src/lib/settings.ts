@@ -1,10 +1,8 @@
-// Elder settings collected in onboarding. Stored in this browser only.
-// The backend still reads its own copy from backend/cdk.json (no settings endpoint yet).
+// Elder settings collected in onboarding. Stored in this browser, and sent to the backend's
+// Settings API when onboarding finishes (syncSettings in api.ts).
+import type { Contact } from '../../../contracts/index.js';
 
-export interface Contact {
-  name: string;
-  phone: string;
-}
+export type { Contact };
 
 export interface Settings {
   family: Contact[];

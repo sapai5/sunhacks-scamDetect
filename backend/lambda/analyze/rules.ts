@@ -9,6 +9,7 @@ import {
   type AgentStatus,
   type AnalyzeRequest,
   type ElderState,
+  type IngestRequest,
   type Level,
   type Tactic,
   type Utterance,
@@ -42,6 +43,8 @@ type DecideInput = Pick<AnalyzeRequest, 'prevLevel' | 'calmStreak' | 'verificati
 
 const rank: Record<Level, number> = { green: 0, yellow: 1, red: 2 };
 const elderRank: Record<ElderState, number> = { none: 0, engaging: 1, complying: 2 };
+/** Who the caller claims to be and time pressure only set the scene: real family emergencies have both. */
+const SCENE_TACTICS: Tactic[] = ['impersonation', 'urgency'];
 
 /** Last ~60 s of transcript, measured back from the newest sentence. */
 export function recentWindow(utterances: Utterance[]): Utterance[] {
@@ -53,8 +56,9 @@ export function recentWindow(utterances: Utterance[]): Utterance[] {
 
 /**
  * Our rules on top of the model's verdict:
- * - red needs 2+ tactics (plus high risk), or a failed verification after a
- *   claimed relative.
+ * - red needs 2+ tactics (plus high risk), at least one of them an ask,
+ *   secrecy or a threat (not just impersonation + urgency), or a failed
+ *   verification after a claimed relative.
  * - a passed verification removes "impersonation" (the relative is real).
  * - if the agent verified the caller, the call can't go red again.
  * - the level only drops after two calm results in a row.
@@ -74,7 +78,7 @@ export function decide(v: ModelVerdict, req: DecideInput): Decision {
   }
 
   let candidate: Level = 'green';
-  if (tactics.length >= 2 && risk >= 60) candidate = 'red';
+  if (tactics.length >= 2 && risk >= 60 && tactics.some((t) => !SCENE_TACTICS.includes(t))) candidate = 'red';
   else if (tactics.length >= 1 || risk >= 40) candidate = 'yellow';
 
   if (req.verification === 'failed' && v.claimedRelative && tactics.length >= 1) {
@@ -182,4 +186,14 @@ export function parseRequest(body: unknown): AnalyzeRequest {
     familyAlerted: b.familyAlerted === true,
     calmStreak: Number.isInteger(b.calmStreak) ? Math.max(0, Math.min(10, Number(b.calmStreak))) : 0,
   };
+}
+
+/** Validate one sentence from the phone transcriber (IngestFn is invoked directly, not over HTTP). */
+export function parseIngest(body: unknown): Required<IngestRequest> {
+  if (!body || typeof body !== 'object') throw new BadRequest('event must be an IngestRequest object');
+  const b = body as Record<string, unknown>;
+  if (b.speaker !== 'caller' && b.speaker !== 'elder') throw new BadRequest('speaker must be "caller" or "elder"');
+  const [u] = parseUtterances({ ...b, utterances: [b] }).utterances;
+  if (!u.text.trim()) throw new BadRequest('text must not be empty');
+  return { callId: u.callId, elderId: u.elderId, speaker: b.speaker, text: u.text, ts: u.ts };
 }

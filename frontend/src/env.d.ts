@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_AGENT_URL?: string;
   /** Events Lambda URL (hang-up / speaker events, family follow-up texts). Without it, events stay local. */
   readonly VITE_EVENTS_URL?: string;
+  /** Settings API URL (Data stack). Without it, onboarding settings stay in this browser. */
+  readonly VITE_SETTINGS_URL?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;
