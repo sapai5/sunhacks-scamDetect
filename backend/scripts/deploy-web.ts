@@ -1,7 +1,7 @@
 // Zips an existing frontend/dist build and pushes it to the Amplify app as a manual deployment.
 // Usage: npm run build -w frontend && npm run deploy:web -w backend
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { AmplifyClient, CreateDeploymentCommand, StartDeploymentCommand } from '@aws-sdk/client-amplify';
 
@@ -10,7 +10,9 @@ const dist = fileURLToPath(new URL('../../frontend/dist', import.meta.url));
 const zip = fileURLToPath(new URL('../../web-dist.zip', import.meta.url));
 
 // tar ships with Windows 10+ and macOS/Linux and can write zip files.
-execFileSync('tar', ['-a', '-c', '-f', zip, '-C', dist, '.'], { stdio: 'inherit' });
+// List top-level entries explicitly: Amplify needs index.html at the zip root, not under "./".
+rmSync(zip, { force: true });
+execFileSync('tar', ['-a', '-c', '-f', zip, '-C', dist, ...readdirSync(dist)], { stdio: 'inherit' });
 
 const amplify = new AmplifyClient({ region: o.Region });
 const appId = o.AmplifyAppId;
