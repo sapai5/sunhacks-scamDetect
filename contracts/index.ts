@@ -1,4 +1,4 @@
-// Shared contracts between the web app and the Analyze Lambda.
+// Shared contracts between the web app and the Lambdas.
 // See the design doc, "Data model and contracts".
 
 export const TACTICS = [
@@ -17,13 +17,30 @@ export type Tactic = (typeof TACTICS)[number];
 export const LEVELS = ['green', 'yellow', 'red'] as const;
 export type Level = (typeof LEVELS)[number];
 
-export type Action = 'none' | 'ask_verification' | 'alert_family';
+export type Action = 'none' | 'ask_verification' | 'alert_family' | 'agent_takeover';
 
 /** Whether the elder has asked the verification question, and the result. */
 export const VERIFICATIONS = ['unasked', 'passed', 'failed'] as const;
 export type Verification = (typeof VERIFICATIONS)[number];
 
-/** One finished sentence. */
+/**
+ * How the elder is responding to the caller, judged by the model.
+ * - none: not engaging, or resisting ("I'll call your mother first")
+ * - engaging: starting to fall for it: sympathetic, answering their questions, asking how to help
+ * - complying: clearly falling for it: agrees to pay, going to buy cards, reading numbers, sharing codes
+ */
+export const ELDER_STATES = ['none', 'engaging', 'complying'] as const;
+export type ElderState = (typeof ELDER_STATES)[number];
+
+/** Where the takeover agent is in its job. */
+export const AGENT_STATUSES = ['idle', 'active', 'verified', 'scam_confirmed', 'caller_left', 'stopped'] as const;
+export type AgentStatus = (typeof AGENT_STATUSES)[number];
+
+/**
+ * One finished sentence. `speaker` is a diarization label from Transcribe
+ * (spk_0, spk_1, ...), "agent" for lines our agent spoke, or "caller"/"elder"
+ * in test scripts.
+ */
 export interface Utterance {
   callId: string;
   elderId: string;
@@ -45,6 +62,8 @@ export interface AnalyzeRequest {
   prevLevel: Level;
   calmStreak: number;
   verification: Verification;
+  familyAlerted: boolean;
+  agentStatus: AgentStatus;
 }
 
 /** Risk state (Analyze Lambda -> app). */
@@ -59,6 +78,27 @@ export interface RiskState {
   // Stage 1 additions so the app can carry state between requests.
   calmStreak: number;
   claimedRelative: boolean;
+  elderState: ElderState;
   verificationQuestion?: string;
+  /** True if this response sent the family alert. */
   familyAlerted: boolean;
+}
+
+/** App -> Agent Lambda: the transcript so far, including the agent's own lines. */
+export interface AgentRequest {
+  callId: string;
+  elderId: string;
+  utterances: Utterance[];
+}
+
+/** Agent Lambda -> app: the next thing to say, and whether the agent is done. */
+export interface AgentResponse {
+  callId: string;
+  /** Line for the browser to speak. Empty when there's nothing more to say. */
+  say: string;
+  /** 'active' means keep the conversation going. */
+  status: Exclude<AgentStatus, 'idle' | 'stopped'>;
+  summary: string;
+  /** True if this response emailed the family a summary. */
+  familyNotified: boolean;
 }

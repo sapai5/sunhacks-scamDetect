@@ -15,6 +15,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export interface Stage1StackProps extends cdk.StackProps {
   elderName: string;
   verificationQuestion: string;
+  /** Only the Agent Lambda gets this. */
+  verificationAnswer: string;
+  /** The family member the takeover agent speaks as. */
+  agentName: string;
+  agentRelation: string;
   modelId: string;
   /** E.164, e.g. +14805551234. Must be a verified number while SMS is in sandbox. */
   familyPhone?: string;
@@ -23,7 +28,8 @@ export interface Stage1StackProps extends cdk.StackProps {
 }
 
 /**
- * Stage 1: browser -> Transcribe, browser -> Analyze Lambda -> Bedrock (+ SNS on red).
+ * Stage 1: browser -> Transcribe, browser -> Analyze Lambda -> Bedrock (+ SNS alert),
+ * browser -> Agent Lambda -> Bedrock for the family-member takeover.
  * Services: Transcribe, Lambda, Bedrock, SNS/SMS, Amplify Hosting.
  */
 export class Stage1Stack extends cdk.Stack {
@@ -94,20 +100,43 @@ export class Stage1Stack extends cdk.Stack {
         removalPolicy: cdk.RemovalPolicy.DESTROY,
       }),
     });
-    analyzeFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          // Cross-region inference profiles (us.*) route to the model in several regions.
-          'arn:aws:bedrock:*::foundation-model/anthropic.claude-*',
-          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/*anthropic.claude-*`,
-        ],
+    // --- Agent Lambda: speaks as a family member once the elder is clearly falling for a scam.
+    const agentFn = new NodejsFunction(this, 'AgentFn', {
+      ...fnDefaults,
+      entry: path.join(here, '../lambda/agent/index.ts'),
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(15),
+      environment: {
+        MODEL_ID: props.modelId,
+        ELDER_NAME: props.elderName,
+        AGENT_NAME: props.agentName,
+        AGENT_RELATION: props.agentRelation,
+        VERIFICATION_QUESTION: props.verificationQuestion,
+        VERIFICATION_ANSWER: props.verificationAnswer,
+        FAMILY_TOPIC_ARN: familyTopic.topicArn,
+      },
+      logGroup: new logs.LogGroup(this, 'AgentLogs', {
+        retention: logs.RetentionDays.ONE_WEEK,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
       }),
-    );
-    familyTopic.grantPublish(analyzeFn);
+    });
+
+    const invokeClaude = new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        // Cross-region inference profiles (us.*) route to the model in several regions.
+        'arn:aws:bedrock:*::foundation-model/anthropic.claude-*',
+        `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/*anthropic.claude-*`,
+      ],
+    });
+    for (const fn of [analyzeFn, agentFn]) {
+      fn.addToRolePolicy(invokeClaude);
+      familyTopic.grantPublish(fn);
+    }
 
     const credentialsUrl = credentialsFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
     const analyzeUrl = analyzeFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
+    const agentUrl = agentFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
 
     // --- Amplify Hosting for the PWA (manual zip deploy, no Git connection).
     const webApp = new amplify.CfnApp(this, 'WebApp', {
@@ -124,6 +153,7 @@ export class Stage1Stack extends cdk.Stack {
     new cdk.CfnOutput(this, 'Region', { value: this.region });
     new cdk.CfnOutput(this, 'CredentialsUrl', { value: credentialsUrl.url });
     new cdk.CfnOutput(this, 'AnalyzeUrl', { value: analyzeUrl.url });
+    new cdk.CfnOutput(this, 'AgentUrl', { value: agentUrl.url });
     new cdk.CfnOutput(this, 'FamilyTopicArn', { value: familyTopic.topicArn });
     new cdk.CfnOutput(this, 'AmplifyAppId', { value: webApp.attrAppId });
     new cdk.CfnOutput(this, 'WebUrl', { value: `https://${branch.branchName}.${webApp.attrDefaultDomain}` });

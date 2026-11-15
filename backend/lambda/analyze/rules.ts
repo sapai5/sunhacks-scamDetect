@@ -1,10 +1,14 @@
 // Pure level rules. No AWS calls here so they can be unit tested.
 import {
+  AGENT_STATUSES,
+  ELDER_STATES,
   LEVELS,
   TACTICS,
   VERIFICATIONS,
   type Action,
+  type AgentStatus,
   type AnalyzeRequest,
+  type ElderState,
   type Level,
   type Tactic,
   type Utterance,
@@ -22,6 +26,7 @@ export interface ModelVerdict {
   tactics: Tactic[];
   reason: string;
   claimedRelative: boolean;
+  elderState: ElderState;
 }
 
 export interface Decision {
@@ -33,7 +38,10 @@ export interface Decision {
   shouldAlert: boolean;
 }
 
+type DecideInput = Pick<AnalyzeRequest, 'prevLevel' | 'calmStreak' | 'verification' | 'familyAlerted' | 'agentStatus'>;
+
 const rank: Record<Level, number> = { green: 0, yellow: 1, red: 2 };
+const elderRank: Record<ElderState, number> = { none: 0, engaging: 1, complying: 2 };
 
 /** Last ~60 s of transcript, measured back from the newest sentence. */
 export function recentWindow(utterances: Utterance[]): Utterance[] {
@@ -48,14 +56,19 @@ export function recentWindow(utterances: Utterance[]): Utterance[] {
  * - red needs 2+ tactics (plus high risk), or a failed verification after a
  *   claimed relative.
  * - a passed verification removes "impersonation" (the relative is real).
+ * - if the agent verified the caller, the call can't go red again.
  * - the level only drops after two calm results in a row.
- * - the family is texted only on the transition into red.
+ * - the family is alerted once, when the call is red and the elder starts
+ *   falling for it (engaging or complying).
+ * - the agent takes over once, when the call is red and the elder is clearly
+ *   complying.
  */
-export function decide(v: ModelVerdict, req: Pick<AnalyzeRequest, 'prevLevel' | 'calmStreak' | 'verification'>): Decision {
+export function decide(v: ModelVerdict, req: DecideInput): Decision {
   let tactics = [...v.tactics];
   let risk = v.risk;
+  const agentVerified = req.agentStatus === 'verified';
 
-  if (req.verification === 'passed') {
+  if (req.verification === 'passed' || agentVerified) {
     tactics = tactics.filter((t) => t !== 'impersonation');
     risk = Math.min(risk, tactics.length >= 2 ? risk : 35);
   }
@@ -69,50 +82,62 @@ export function decide(v: ModelVerdict, req: Pick<AnalyzeRequest, 'prevLevel' | 
     risk = Math.max(risk, 85);
   }
 
+  if (agentVerified && candidate === 'red') {
+    candidate = 'yellow';
+    risk = Math.min(risk, 55);
+  }
+
   const calmStreak = candidate === 'green' ? req.calmStreak + 1 : 0;
 
   let level = candidate;
-  if (rank[candidate] < rank[req.prevLevel] && calmStreak < 2) level = req.prevLevel;
+  // Hysteresis, except right after the agent verified the caller.
+  if (rank[candidate] < rank[req.prevLevel] && calmStreak < 2 && !agentVerified) level = req.prevLevel;
+
+  const falling = elderRank[v.elderState] >= elderRank.engaging;
+  const shouldAlert = level === 'red' && falling && !req.familyAlerted;
+  const takeover = level === 'red' && v.elderState === 'complying' && req.agentStatus === 'idle';
 
   let action: Action = 'none';
-  if (level === 'red') action = 'alert_family';
-  else if (level === 'yellow' && v.claimedRelative && req.verification === 'unasked') action = 'ask_verification';
+  if (takeover) action = 'agent_takeover';
+  else if (shouldAlert) action = 'alert_family';
+  else if (level === 'yellow' && v.claimedRelative && req.verification === 'unasked' && req.agentStatus === 'idle') {
+    action = 'ask_verification';
+  }
 
-  return {
-    level,
-    risk,
-    tactics,
-    action,
-    calmStreak,
-    shouldAlert: level === 'red' && req.prevLevel !== 'red',
-  };
+  return { level, risk, tactics, action, calmStreak, shouldAlert };
+}
+
+/** Pull the first JSON object out of model text. */
+export function extractJson(text: string): Record<string, unknown> {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start < 0 || end <= start) throw new Error('model returned no JSON');
+  return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
 }
 
 /** Parse the model's text into a clean verdict. Unknown tactics are dropped. */
 export function parseVerdict(text: string): ModelVerdict {
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start < 0 || end <= start) throw new Error('model returned no JSON');
-  const raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
-
+  const raw = extractJson(text);
   const risk = Math.round(Math.min(100, Math.max(0, Number(raw.risk) || 0)));
   const tactics = Array.isArray(raw.tactics)
     ? [...new Set(raw.tactics.filter((t): t is Tactic => (TACTICS as readonly string[]).includes(t as string)))]
     : [];
+  const elderState = (ELDER_STATES as readonly string[]).includes(raw.elderState as string)
+    ? (raw.elderState as ElderState)
+    : 'none';
   return {
     risk,
     tactics,
     reason: typeof raw.reason === 'string' ? raw.reason.slice(0, 300) : '',
     claimedRelative: raw.claimedRelative === true,
+    elderState,
   };
 }
 
 export class BadRequest extends Error {}
 
-/** Validate the request at the trust boundary (the function URL is public). */
-export function parseRequest(body: unknown): AnalyzeRequest {
-  if (!body || typeof body !== 'object') throw new BadRequest('body must be a JSON object');
-  const b = body as Record<string, unknown>;
+/** Validate the transcript part of a request (shared by both Lambdas). */
+export function parseUtterances(b: Record<string, unknown>): { callId: string; elderId: string; utterances: Utterance[] } {
   const str = (k: string, max = 64) => {
     const v = b[k];
     if (typeof v !== 'string' || v.length === 0 || v.length > max) throw new BadRequest(`${k} must be a string`);
@@ -136,12 +161,25 @@ export function parseRequest(body: unknown): AnalyzeRequest {
       seq: Number.isFinite(o.seq) ? Number(o.seq) : i,
     };
   });
+  return { callId, elderId, utterances };
+}
 
-  const prevLevel = (LEVELS as readonly string[]).includes(b.prevLevel as string) ? (b.prevLevel as Level) : 'green';
-  const verification = (VERIFICATIONS as readonly string[]).includes(b.verification as string)
-    ? (b.verification as Verification)
-    : 'unasked';
-  const calmStreak = Number.isInteger(b.calmStreak) ? Math.max(0, Math.min(10, Number(b.calmStreak))) : 0;
+const oneOf = <T extends string>(list: readonly T[], v: unknown, fallback: T): T =>
+  (list as readonly string[]).includes(v as string) ? (v as T) : fallback;
 
-  return { callId, elderId, utterances, prevLevel, calmStreak, verification };
+/** Validate the request at the trust boundary (the function URL is public). */
+export function parseRequest(body: unknown): AnalyzeRequest {
+  if (!body || typeof body !== 'object') throw new BadRequest('body must be a JSON object');
+  const b = body as Record<string, unknown>;
+  const { callId, elderId, utterances } = parseUtterances(b);
+  return {
+    callId,
+    elderId,
+    utterances,
+    prevLevel: oneOf<Level>(LEVELS, b.prevLevel, 'green'),
+    verification: oneOf<Verification>(VERIFICATIONS, b.verification, 'unasked'),
+    agentStatus: oneOf<AgentStatus>(AGENT_STATUSES, b.agentStatus, 'idle'),
+    familyAlerted: b.familyAlerted === true,
+    calmStreak: Number.isInteger(b.calmStreak) ? Math.max(0, Math.min(10, Number(b.calmStreak))) : 0,
+  };
 }

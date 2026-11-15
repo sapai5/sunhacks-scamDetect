@@ -1,14 +1,18 @@
 # Elder Scam Call Shield: Stage 1
 
-Speakerphone call → browser mic → Amazon Transcribe → Analyze Lambda → Bedrock (Claude Haiku) → green / yellow / red light. Red texts the family via SNS.
+Speakerphone call → browser mic → Amazon Transcribe → Analyze Lambda → Bedrock (Claude Haiku) → green / yellow / red light.
+When the call is red and the elder starts going along with it, the family gets an email. When she's clearly falling for it, an agent posing as a family member takes over the call through the laptop speaker, checks the caller, and either hands the call back or ends it.
+
+Product decisions (which calls are screened, when to alert, when the agent takes over) are in `.kiro/steering/product.md`.
 
 ```
-frontend/   PWA (Vite, vanilla TS). Mic → Transcribe streaming, light, meter, chips, verification card.
+frontend/   PWA (Vite, vanilla TS). Mic → Transcribe streaming, light, meter, chips, verification card, takeover panel, built-in speech for the agent.
 backend/    CDK stack ScamShieldStage1
   lambda/credentials   STS AssumeRole → 15-min creds allowed only to open a Transcribe stream
-  lambda/analyze       validate → last 60 s → Bedrock → level rules (rules.ts) → SNS on red
-  scripts/             4 test scripts, a runner against the deployed Lambda, deploy helpers
-contracts/  Shared TypeScript types (Utterance, AnalyzeRequest, RiskState)
+  lambda/analyze       validate → last 60 s → Bedrock → level rules (rules.ts) → SNS alert
+  lambda/agent         transcript → Bedrock as the family persona → guards (rules.ts) → next line + status
+  scripts/             5 test scripts, a runner against the deployed Lambdas, deploy and check helpers
+contracts/  Shared TypeScript types (Utterance, AnalyzeRequest, RiskState, AgentRequest, AgentResponse)
 ```
 
 ## AWS resources
@@ -16,18 +20,19 @@ contracts/  Shared TypeScript types (Utterance, AnalyzeRequest, RiskState)
 | Component | Resource | Notes |
 |---|---|---|
 | Web app | Amplify Hosting app `scam-shield`, branch `main` | Manual zip deploys, no Git connection |
-| Live transcription | Transcribe streaming (called from the browser) | Nothing to provision |
+| Live transcription | Transcribe streaming (called from the browser) | Speaker labels on. Nothing to provision |
 | Credentials Lambda | Function URL + `BrowserTranscribeRole` | Role allows only `transcribe:StartStreamTranscriptionWebSocket`. Replaces the Cognito identity pool from the doc, same effect, less setup |
 | Analyze Lambda | Function URL, Node 22 arm64, 15 s timeout | Role: `bedrock:InvokeModel` on Claude models, `sns:Publish` on the family topic |
-| Family alert | SNS topic `FamilyAlerts` with SMS (and optional email) subscription | Texts only on the transition into red |
+| Agent Lambda | Function URL, Node 22 arm64, 15 s timeout | Same permissions. Only this function gets the verification answer |
+| Family alert | SNS topic `FamilyAlerts` with email (and optional SMS) subscription | Alert when red + elder engaging; summary when the agent finishes |
 
-Elder settings (name, verification question, family phone, model) are CDK context in `backend/cdk.json`, passed to the Lambda as environment variables.
+Elder settings (name, verification question and answer, agent persona, family email, model) are CDK context in `backend/cdk.json`, passed to the Lambdas as environment variables. The values in the repo are demo data.
 
-## Setup (hour 1)
+## Setup
 
-1. AWS credentials for the team account (`aws configure` or env vars). Region defaults to `us-east-1` in `backend/cdk.json`.
-2. Bedrock console → Model access → enable **Claude Haiku 4.5** (or change `modelId`, e.g. `us.anthropic.claude-3-5-haiku-20241022-v1:0`).
-3. SMS: new accounts are in the SMS sandbox. In the SNS console → Text messaging (SMS) → add and verify the family phone number. Set `familyPhone` (E.164, `+1...`) in `backend/cdk.json`. Set `familyEmail` as a fallback if SMS isn't ready.
+1. AWS credentials for the team account (`~/.aws/credentials` or env vars). Check with `npx tsx scripts/whoami.ts` in `backend/`.
+2. Bedrock access to **Claude Haiku 4.5**. Check with `npx tsx scripts/check-bedrock.ts`.
+3. Set `familyEmail` in `backend/cdk.json`. After deploying, click the confirmation link SNS emails you. (US SMS needs a registered sending number, which takes up to 15 business days, so email is the channel for now.)
 4. `npm install`
 5. `cd backend && npx cdk bootstrap` (once per account/region)
 
@@ -36,18 +41,20 @@ Elder settings (name, verification question, family phone, model) are CDK contex
 ```
 cd backend
 npm run deploy              # cdk deploy, writes cdk-outputs.json and frontend/.env.local
-npm run scripts:run         # plays the 4 test scripts against the real Lambda (red ones send SMS)
+npm run scripts:run         # plays the test scripts against the real Lambdas (sends real alert emails)
 cd ../frontend
 npm run dev                 # local; open on the laptop
 npm run build && npm run deploy:web -w backend   # push to Amplify, URL printed
 ```
 
 The mic needs HTTPS (or localhost). On an iPhone use the Amplify URL, then Share → Add to Home Screen.
+Demo mode plays a test script through the whole flow, including the agent speaking and scripted caller replies, without a mic.
 
-`npm test` runs the level-rule unit tests (no AWS needed).
+`npm test` runs the rule unit tests (no AWS needed).
 
 ## Known Stage 1 shortcuts
 
-- Both function URLs are public (`authType: NONE`) with CORS `*`. Anyone with the Analyze URL can trigger Bedrock calls and family texts. Lock CORS to the Amplify domain after first deploy; Cognito comes in Stage 3.
+- All function URLs are public (`authType: NONE`) with CORS `*`. Anyone with a URL can trigger Bedrock calls and family emails. Lock CORS to the Amplify domain; Cognito comes in Stage 3.
 - One elder, hardcoded. `elderId` is always `e-01`.
-- Transcribe gets one mixed channel from the speakerphone, so every line is labeled `caller`.
+- The app can't see the caller's number, so "only unknown numbers" relies on the elder starting it. Stage 2 (Connect) checks caller ID against `trustedContacts`.
+- The agent speaks through the laptop speaker into the speakerphone, so the caller hears it at speakerphone quality. The mic is muted (silence sent) while it speaks.

@@ -1,12 +1,19 @@
-// Browser mic -> Amazon Transcribe streaming. Emits partial and final sentences.
+// Browser mic -> Amazon Transcribe streaming. Emits partial and final sentences
+// with a diarization speaker label (spk_0, spk_1, ...).
 import { StartStreamTranscriptionCommand, TranscribeStreamingClient } from '@aws-sdk/client-transcribe-streaming';
 
 const SAMPLE_RATE = 16000;
 
 export interface TranscriberEvents {
   onPartial(text: string): void;
-  onFinal(text: string): void;
+  onFinal(text: string, speaker: string): void;
   onError(err: unknown): void;
+}
+
+export interface Transcriber {
+  stop(): void;
+  /** While muted, silence is sent instead of mic audio, so the agent's own voice isn't transcribed. */
+  setMuted(muted: boolean): void;
 }
 
 // AudioWorklet that posts Float32 mic frames to the main thread.
@@ -16,7 +23,7 @@ class Tap extends AudioWorkletProcessor {
 }
 registerProcessor('tap', Tap);`;
 
-export async function startTranscriber(events: TranscriberEvents): Promise<() => void> {
+export async function startTranscriber(events: TranscriberEvents): Promise<Transcriber> {
   const credsRes = await fetch(import.meta.env.VITE_CREDENTIALS_URL, { method: 'POST' });
   if (!credsRes.ok) throw new Error(`credentials: HTTP ${credsRes.status}`);
   const creds = await credsRes.json();
@@ -35,6 +42,7 @@ export async function startTranscriber(events: TranscriberEvents): Promise<() =>
   const queue: Uint8Array[] = [];
   let wake: (() => void) | null = null;
   let stopped = false;
+  let muted = false;
   let pending: Float32Array[] = [];
   let pendingLen = 0;
   tap.port.onmessage = (e: MessageEvent<Float32Array>) => {
@@ -47,7 +55,9 @@ export async function startTranscriber(events: TranscriberEvents): Promise<() =>
       for (const p of pending) { merged.set(p, o); o += p.length; }
       pending = [];
       pendingLen = 0;
-      queue.push(toPcm16(downsample(merged, ctx.sampleRate, SAMPLE_RATE)));
+      const pcm = downsample(merged, ctx.sampleRate, SAMPLE_RATE);
+      if (muted) pcm.fill(0);
+      queue.push(toPcm16(pcm));
       wake?.();
     }
   };
@@ -74,15 +84,17 @@ export async function startTranscriber(events: TranscriberEvents): Promise<() =>
           MediaSampleRateHertz: SAMPLE_RATE,
           EnablePartialResultsStabilization: true,
           PartialResultsStability: 'medium',
+          ShowSpeakerLabel: true,
           AudioStream: audioStream(),
         }),
       );
       for await (const ev of res.TranscriptResultStream ?? []) {
         for (const r of ev.TranscriptEvent?.Transcript?.Results ?? []) {
-          const text = r.Alternatives?.[0]?.Transcript?.trim();
+          const alt = r.Alternatives?.[0];
+          const text = alt?.Transcript?.trim();
           if (!text) continue;
           if (r.IsPartial) events.onPartial(text);
-          else events.onFinal(text);
+          else events.onFinal(text, majoritySpeaker(alt?.Items ?? []));
         }
       }
     } catch (err) {
@@ -90,15 +102,30 @@ export async function startTranscriber(events: TranscriberEvents): Promise<() =>
     }
   })();
 
-  return () => {
-    stopped = true;
-    wake?.();
-    tap.disconnect();
-    source.disconnect();
-    stream.getTracks().forEach((t) => t.stop());
-    void ctx.close();
-    client.destroy();
+  return {
+    setMuted: (m) => (muted = m),
+    stop: () => {
+      stopped = true;
+      wake?.();
+      tap.disconnect();
+      source.disconnect();
+      stream.getTracks().forEach((t) => t.stop());
+      void ctx.close();
+      client.destroy();
+    },
   };
+}
+
+/** A sentence can span speakers; label it with whoever spoke most of its words. */
+function majoritySpeaker(items: { Speaker?: string; Type?: string }[]): string {
+  const counts = new Map<string, number>();
+  for (const it of items) {
+    if (it.Type === 'pronunciation' && it.Speaker) counts.set(it.Speaker, (counts.get(it.Speaker) ?? 0) + 1);
+  }
+  let best = 'unknown';
+  let max = 0;
+  for (const [s, n] of counts) if (n > max) [best, max] = [`spk_${s}`, n];
+  return best;
 }
 
 function downsample(input: Float32Array, from: number, to: number): Float32Array {

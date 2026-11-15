@@ -25,12 +25,19 @@
         </div>
       </section>
 
-      <p id="alerted" class="alerted" hidden>Your family has been texted.</p>
+      <section id="agent" class="card agent" aria-live="assertive" hidden>
+        <p id="agent-title" class="question"></p>
+        <p id="agent-text"></p>
+        <button id="agent-stop">Let me talk</button>
+      </section>
+
+      <p id="alerted" class="alerted" hidden>Your family has been alerted.</p>
 
       <div class="row">
         <button id="start" class="primary">Start listening</button>
         <button id="stop" hidden>Stop</button>
       </div>
+      <p class="hint">Use this for calls from numbers that aren't in your contacts.</p>
       <label class="demo"><input type="checkbox" id="demo" /> Demo: play a test script instead of the mic</label>
       <select id="demo-script" hidden></select>
 

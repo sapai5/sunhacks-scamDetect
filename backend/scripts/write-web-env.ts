@@ -6,6 +6,7 @@ const env = [
   `VITE_REGION=${o.Region}`,
   `VITE_CREDENTIALS_URL=${o.CredentialsUrl}`,
   `VITE_ANALYZE_URL=${o.AnalyzeUrl}`,
+  `VITE_AGENT_URL=${o.AgentUrl}`,
 ].join('\n');
 writeFileSync(new URL('../../frontend/.env.local', import.meta.url), env + '\n');
 console.log('wrote frontend/.env.local');
