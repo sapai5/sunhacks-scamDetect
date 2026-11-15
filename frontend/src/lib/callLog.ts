@@ -5,9 +5,9 @@
 // Phone-path calls (pushed over the socket) only carry risk results, not sentences, so their
 // entries have no transcript until the backend sends one.
 import { useEffect } from 'react';
-import type { AgentStatus, Exposure, Level, RiskState, Tactic, Utterance } from '../../../contracts/index.js';
+import type { AgentStatus, Exposure, Level, PushMessage, RiskState, Tactic, Utterance } from '../../../contracts/index.js';
 import { detectExposures, mergeExposures } from '../../../contracts/exposures.js';
-import type { CallSnapshot, LoggedEvent, RiskPoint } from './snapshot';
+import { EMPTY_SNAPSHOT, type CallSnapshot, type LoggedEvent, type RiskPoint } from './snapshot';
 
 export interface CallLogEntry {
   callId: string;
@@ -86,6 +86,61 @@ export function entryFor(s: CallSnapshot, prev?: CallLogEntry): CallLogEntry | n
     history: s.history.length >= (prev?.history.length ?? 0) ? s.history : prev!.history,
     events: s.events.length >= (prev?.events.length ?? 0) ? s.events : prev!.events,
   };
+}
+
+/**
+ * A phone call the app learned about from the push socket, including one that already ended
+ * while the page was suspended. Keeps a transcript the phone already saved. An ended call
+ * stays ended: a later copy of the same message does not stretch its duration.
+ */
+export function mergePushedCall(prev: CallLogEntry | undefined, next: PushMessage): CallLogEntry | null {
+  const risk: RiskState = {
+    callId: next.callId,
+    risk: next.risk,
+    level: next.level,
+    tactics: next.tactics,
+    reason: next.reason,
+    action: next.action,
+    updatedAt: next.updatedAt,
+    calmStreak: next.calmStreak,
+    claimedRelative: next.claimedRelative,
+    elderState: next.elderState,
+    verificationQuestion: next.verificationQuestion,
+    familyAlerted: Boolean(next.familyAlerted || prev?.familyAlerted),
+    exposures: next.exposures,
+  };
+  const entry = entryFor(
+    {
+      ...EMPTY_SNAPSHOT,
+      callId: next.callId,
+      running: !next.ended,
+      startedAt: prev?.startedAt ?? next.updatedAt,
+      risk,
+      question: next.verificationQuestion ?? null,
+      transcript: prev?.transcript ?? [],
+      history: prev?.history.length ? prev.history : [{ seq: 0, risk: next.risk, level: next.level, newTactics: next.tactics ?? [] }],
+      agentStatus: next.agentStatus ?? 'idle',
+      events: prev?.events ?? [],
+    },
+    prev,
+  );
+  if (!entry) return null;
+  if (next.ended) {
+    entry.running = false;
+    entry.updatedAt = prev && !prev.running ? prev.updatedAt : Math.max(entry.startedAt, next.updatedAt);
+  }
+  return entry;
+}
+
+/** Writes one pushed phone call into the on-device log. */
+export function rememberPushedCall(next: PushMessage): void {
+  const list = loadCallLog();
+  const i = list.findIndex((c) => c.callId === next.callId);
+  const entry = mergePushedCall(i >= 0 ? list[i] : undefined, next);
+  if (!entry) return;
+  if (i >= 0) list[i] = entry;
+  else list.unshift(entry);
+  save(list);
 }
 
 /** Saves the current call into the log whenever it changes. Mount once, inside CallProvider. */

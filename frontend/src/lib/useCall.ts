@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { AgentStatus, PushMessage, RiskState, Utterance, Verification } from '../../../contracts/index.js';
 import { TEST_SCRIPTS } from '../../../backend/scripts/test-scripts.js';
 import { agentTurn, analyze, sendToPhoneCall } from './api';
+import { rememberPushedCall } from './callLog';
 import { elderView, pushedStateEffect } from './callState';
 import type { CallSnapshot, RiskPoint } from './snapshot';
 import { speak, stopSpeaking, unlockSpeech } from './speech';
@@ -253,7 +254,12 @@ export function useCall() {
     (next: PushMessage) => {
       const r = s.current;
       const effect = pushedStateEffect(r, next);
-      if (effect === 'ignore') return;
+      // A call the screen is not showing (it ended while the phone app was in front, or another
+      // call is up) still belongs in the log. An older result for the call on screen does not.
+      if (effect === 'ignore') {
+        if (r.callId !== next.callId || next.ended) rememberPushedCall(next);
+        return effect;
+      }
       if (effect === 'new') {
         begin(next.callId, true);
         setStatus('Phone call, checked by the server');
@@ -284,6 +290,7 @@ export function useCall() {
       }
       // Hung up (either side): close the call; the live screen moves on to the summary.
       if (next.ended) stop();
+      return effect;
     },
     // pushUtterance only reads refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps

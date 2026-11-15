@@ -208,7 +208,7 @@ export interface ElderSettings {
   verificationAnswer: string;
   agentName: string;
   agentRelation: string;
-  /** Family contacts from onboarding. Alerts still go to the SNS topic's subscribers. */
+  /** Close contacts from onboarding. After a risky call, each one is texted a recap. The mid-call alert still goes to the SNS topic. */
   family: Contact[];
   /** E.164 numbers whose calls skip screening (Connect contacts check). */
   trustedContacts: string[];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { RiskState } from '../../../contracts/index.js';
-import { entryFor } from './callLog';
+import type { PushMessage, RiskState } from '../../../contracts/index.js';
+import { entryFor, mergePushedCall, type CallLogEntry } from './callLog';
 import { EMPTY_SNAPSHOT, type CallSnapshot } from './snapshot';
 
 const risk = (level: RiskState['level'], tactics: RiskState['tactics'] = []): RiskState => ({
@@ -53,6 +53,38 @@ describe('entryFor', () => {
     expect(prev.exposures).toEqual(['card_number', 'ssn']);
     // A later result without them (e.g. a phone call after a reload) doesn't erase them.
     expect(entryFor(snap({ risk: risk('red'), transcript: [] }), prev)!.exposures).toEqual(['card_number', 'ssn']);
+  });
+
+  it('saves a phone call the app only heard about after it ended, and does not stretch it', () => {
+    const push = (over: Partial<PushMessage> = {}): PushMessage => ({
+      ...risk('red'),
+      callId: 'CA1',
+      updatedAt: 5_000,
+      reason: 'Asked for gift cards',
+      agentStatus: 'scam_confirmed',
+      ended: true,
+      familyAlerted: true,
+      ...over,
+    });
+    const first = mergePushedCall(undefined, push())!;
+    expect(first).toMatchObject({ callId: 'CA1', running: false, peak: 'red', startedAt: 5_000, updatedAt: 5_000, familyAlerted: true });
+    const again = mergePushedCall({ ...first, updatedAt: 5_000 }, push({ updatedAt: 9_000 }))!;
+    expect(again.running).toBe(false);
+    expect(again.updatedAt).toBe(5_000);
+    expect(again.startedAt).toBe(5_000);
+  });
+
+  it('keeps the transcript already saved when a later push has none', () => {
+    const prev = entryFor(snap({ risk: risk('yellow'), transcript: [line(0, 'hello')] }))!;
+    const next = mergePushedCall(prev as CallLogEntry, {
+      ...risk('red'),
+      updatedAt: 8_000,
+      agentStatus: 'idle',
+      ended: true,
+    });
+    expect(next?.transcript).toHaveLength(1);
+    expect(next?.peak).toBe('red');
+    expect(next?.running).toBe(false);
   });
 
   it('remembers that the family was alerted', () => {

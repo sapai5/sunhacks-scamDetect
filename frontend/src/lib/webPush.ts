@@ -2,10 +2,12 @@
 // backend/lambda/shared/elderAlerts.ts: the call turns red, the agent takes over (the elder's leg
 // drops), the agent finishes, a risky call ends. Notifications show over the phone-call screen.
 //
-// Subscribing goes over the existing push socket (no new URL): ask for the VAPID key, subscribe in the
-// browser, send the subscription. iPhone: only from the Home Screen app (iOS 16.4+), never a Safari tab.
+// Subscribing goes over the call socket (a second socket errors on iPhone): ask for the VAPID key,
+// subscribe in the browser, send the subscription. iPhone: only from the Home Screen app (iOS 16.4+),
+// never a Safari tab.
 // The service worker only registers in production builds, so alerts can't be turned on in `npm run dev`.
 import type { PushVapidKeyReply } from '../../../contracts/index.js';
+import { requestPush } from './api';
 import { isIOS, isStandalone } from './pwa';
 
 const PUSH_URL = import.meta.env.VITE_PUSH_URL;
@@ -68,40 +70,9 @@ export async function showTestAlert(): Promise<void> {
   });
 }
 
-/**
- * Sends one message on a short-lived push socket. With `until`, waits for the reply that matches
- * (other messages, like call updates, are ignored). Rejects after 8 s.
- */
+/** One message on the call socket. A second socket is what made "Turn on alerts" fail on iPhone. */
 function ask<T = unknown>(msg: object, until?: (m: unknown) => boolean): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${PUSH_URL}?elderId=${encodeURIComponent(ELDER_ID)}`);
-    const timer = setTimeout(() => {
-      ws.close();
-      reject(new Error('the server did not answer'));
-    }, 8_000);
-    const done = (value: T) => {
-      clearTimeout(timer);
-      ws.close();
-      resolve(value);
-    };
-    ws.onopen = () => {
-      ws.send(JSON.stringify(msg));
-      // No reply expected: give API Gateway a moment to take the message before closing.
-      if (!until) setTimeout(() => done(undefined as T), 500);
-    };
-    ws.onmessage = (e) => {
-      try {
-        const m = JSON.parse(e.data as string);
-        if (until?.(m)) done(m as T);
-      } catch {
-        /* not JSON */
-      }
-    };
-    ws.onerror = () => {
-      clearTimeout(timer);
-      reject(new Error('could not reach the server'));
-    };
-  });
+  return requestPush<T>(msg, until);
 }
 
 function base64UrlToBytes(s: string): Uint8Array<ArrayBuffer> {

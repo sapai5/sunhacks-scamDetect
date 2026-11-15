@@ -6,11 +6,6 @@ import type { CallSnapshot } from './snapshot';
 /** The phone number isn't available to the app (audio comes over speakerphone); demo value. */
 export const SAMPLE_CALLER = { number: '+1 (602) 555-0147', label: 'Unknown caller' };
 
-export const SAMPLE_FAMILY = [
-  { name: 'Maria (daughter)', phone: '+1 (480) 555-0193' },
-  { name: 'James (son)', phone: '+1 (480) 555-0122' },
-];
-
 export const SAMPLE_QUESTION = "What was the name of Grandpa's old dog?";
 
 const base: RiskState = {

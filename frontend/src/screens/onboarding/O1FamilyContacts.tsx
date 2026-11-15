@@ -1,12 +1,11 @@
 // O1 Family contacts. Figma node 15:98.
-// Saved to the backend when onboarding finishes; alerts still go to the SNS topic's subscribers (backend/cdk.json).
+// These are Settings → Family to alert. Saved contacts are texted a recap after a risky call.
 import { useState } from 'react';
 import { Field } from '../../components/Risk';
-import { SAMPLE_FAMILY } from '../../lib/fixtures';
 import type { Contact } from '../../lib/settings';
 
 export interface O1Props {
-  /** Saved contacts (empty on first run, then sample values are shown). */
+  /** Saved contacts. Empty on first run: one blank name and phone. */
   initial?: Contact[];
   /** Save the contacts and go to the next step. */
   onNext?: (family: Contact[]) => void;
@@ -14,8 +13,10 @@ export interface O1Props {
   submitLabel?: string;
 }
 
+const BLANK: Contact = { name: '', phone: '' };
+
 export default function O1FamilyContacts({ initial, onNext, submitLabel = 'Next' }: O1Props) {
-  const [family, setFamily] = useState<Contact[]>(initial?.length ? initial : SAMPLE_FAMILY);
+  const [family, setFamily] = useState<Contact[]>(initial?.length ? initial : [BLANK]);
   const [index, setIndex] = useState(0);
   const current = family[index] ?? family[0] ?? { name: '', phone: '' };
   const set = (patch: Partial<Contact>) => setFamily((list) => list.map((c, j) => (j === index ? { ...c, ...patch } : c)));

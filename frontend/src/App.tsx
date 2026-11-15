@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { StartRoute } from './flow/routes';
 import { TabBar } from './components/TabBar';
+import { syncSettings } from './lib/api';
 import { CallProvider, useCallContext } from './lib/CallContext';
 import { useCallLogRecorder } from './lib/callLog';
+import { loadSettings, takeSampleFamilyRemoval } from './lib/settings';
 import { SCREENS } from './routes';
 import Schematic from './screens/Schematic';
 import './styles/motion.css';
@@ -28,9 +30,20 @@ function NotificationRouter() {
   return null;
 }
 
+/** Drops the old sample contacts (Maria and James) and clears them on the server. */
+function ForgetSampleFamily() {
+  useEffect(() => {
+    loadSettings();
+    const next = takeSampleFamilyRemoval();
+    if (next) void syncSettings(next);
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <CallProvider>
+      <ForgetSampleFamily />
       <CallLogRecorder />
       <NotificationRouter />
       <Routes>
