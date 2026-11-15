@@ -7,7 +7,10 @@ caller ──> Twilio number ──POST /voice──> this server
 /media  → mu-law → PCM → Amazon Transcribe (caller track, elder track)
         → each sentence → IngestFn (Track B) → RiskState in Calls → pushed to the app
 agent_takeover → the caller's call is redirected to the agent, which drops the elder's leg;
-                 each Agent Lambda line is <Say> (Polly voice), then the agent waits for the reply
+                 the opening line is <Say>, then a two-way stream (/agent) where Amazon Nova Sonic talks
+                 with the caller and handles the turn-taking. Claude Haiku (the Agent Lambda) reads each
+                 caller reply and decides the verdict; Sonic never gets the verification answer.
+                 AGENT_VOICE=say falls back to saying each Agent Lambda line with <Say>.
                → each agent line goes to IngestFn as speaker 'agent' (the app shows it)
 "Let me talk"  → the app sets Calls.agentStatus = stopped → the agent goes quiet, the elder's phone rings again
 verified       → "Here she is", then the elder's phone rings again
@@ -68,5 +71,6 @@ so the elder could stay on the line and hear the agent.
 ## Status
 
 - Real calls: forwarding, both tracks, scoring, red and the family alert work (tested).
-- Not verified on a real call yet: the takeover redirect, whether the media stream keeps running
-  after it, and the hand-back re-dial.
+- Real calls: the takeover redirect works, the monitoring stream keeps running after it, and the
+  Nova Sonic agent talks with the caller (tested).
+- Not verified on a real call yet: the hand-back re-dial.

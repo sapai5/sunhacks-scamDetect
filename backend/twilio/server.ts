@@ -7,10 +7,10 @@
 //     inbound track  = caller, outbound track = what the caller hears = elder (later our agent)
 //   each final sentence -> IngestFn (Track B) -> RiskState, saved in Calls, pushed to the app
 //   agent_takeover     -> the caller's call is redirected to the agent (this drops the elder's leg).
-//                         Default: each Agent Lambda line is <Say>, then the agent waits for the reply.
-//                         AGENT_VOICE=sonic (opt-in, not yet verified on a real call): opening line, then a
-//                         two-way stream to /agent where Amazon Nova Sonic talks with the caller; the
-//                         Agent Lambda (Claude Haiku) reads each caller reply and decides the verdict.
+//                         Default: opening line, then a two-way stream to /agent where Amazon Nova Sonic
+//                         talks with the caller; the Agent Lambda (Claude Haiku) reads each caller reply
+//                         and decides the verdict.
+//                         AGENT_VOICE=say (fallback): each Agent Lambda line is <Say>, then the agent waits.
 //   verified           -> "Here she is", then the agent hands back by dialing the elder again
 //   scam confirmed     -> goodbye, hang up
 // Trial-safe: no conferences, no inline TwiML, no `method` parameters.

@@ -33,9 +33,8 @@ export interface BridgeConfig {
   eldersTable: string;
   agentUrl: string;
   /**
-   * Who talks to the caller during a takeover. 'say' (default): the Agent Lambda's lines with Twilio
-   * <Say>. 'sonic' (AGENT_VOICE=sonic): Amazon Nova Sonic over a two-way stream. Opt-in until it has
-   * been verified on a real call.
+   * Who talks to the caller during a takeover. 'sonic' (default): Amazon Nova Sonic over a two-way
+   * stream. 'say' (AGENT_VOICE=say): the Agent Lambda's lines with Twilio <Say>, the fallback.
    */
   agentVoice: 'sonic' | 'say';
   /** The agent's persona from cdk.json, used when the elder has no settings in the Elders table. */
@@ -83,7 +82,7 @@ export async function loadConfig(): Promise<BridgeConfig> {
     callsTable: data.CallsTableName,
     eldersTable: data.EldersTableName,
     agentUrl: stage1.AgentUrl,
-    agentVoice: process.env.AGENT_VOICE === 'sonic' ? 'sonic' : 'say',
+    agentVoice: process.env.AGENT_VOICE === 'say' ? 'say' : 'sonic',
     transcribeProfile: process.env.TRANSCRIBE_AWS_PROFILE || undefined,
     localBackend: process.env.LOCAL_BACKEND === '1',
     familyTopicArn: stage1.FamilyTopicArn,
