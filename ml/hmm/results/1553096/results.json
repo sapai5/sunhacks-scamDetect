@@ -1,0 +1,1380 @@
+{
+  "_coverage_calls_with_category": {
+    "INFO": {
+      "bothbosu scam": 0.751,
+      "bothbosu normal": 0.081,
+      "abcd": 0.145,
+      "spokenwoz": 0.016,
+      "youtube scam": 0.2
+    },
+    "GIFT": {
+      "bothbosu scam": 0.191,
+      "bothbosu normal": 0.015,
+      "abcd": 0.012,
+      "spokenwoz": 0.0,
+      "youtube scam": 0.05
+    },
+    "PAY": {
+      "bothbosu scam": 0.679,
+      "bothbosu normal": 0.123,
+      "abcd": 0.132,
+      "spokenwoz": 0.002,
+      "youtube scam": 0.5
+    },
+    "REMOTE": {
+      "bothbosu scam": 0.191,
+      "bothbosu normal": 0.001,
+      "abcd": 0.002,
+      "spokenwoz": 0.001,
+      "youtube scam": 0.2
+    },
+    "THREAT": {
+      "bothbosu scam": 0.502,
+      "bothbosu normal": 0.047,
+      "abcd": 0.001,
+      "spokenwoz": 0.001,
+      "youtube scam": 0.25
+    },
+    "SECRECY": {
+      "bothbosu scam": 0.195,
+      "bothbosu normal": 0.01,
+      "abcd": 0.0,
+      "spokenwoz": 0.011,
+      "youtube scam": 0.0
+    },
+    "URGENCY": {
+      "bothbosu scam": 0.649,
+      "bothbosu normal": 0.541,
+      "abcd": 0.633,
+      "spokenwoz": 0.183,
+      "youtube scam": 0.75
+    },
+    "PRIZE": {
+      "bothbosu scam": 0.588,
+      "bothbosu normal": 0.081,
+      "abcd": 0.165,
+      "spokenwoz": 0.011,
+      "youtube scam": 0.3
+    },
+    "IMPERSONATE": {
+      "bothbosu scam": 0.637,
+      "bothbosu normal": 0.08,
+      "abcd": 0.002,
+      "spokenwoz": 0.002,
+      "youtube scam": 0.55
+    },
+    "RELATIVE": {
+      "bothbosu scam": 0.012,
+      "bothbosu normal": 0.006,
+      "abcd": 0.001,
+      "spokenwoz": 0.001,
+      "youtube scam": 0.0
+    },
+    "NEGATED": {
+      "bothbosu scam": 0.169,
+      "bothbosu normal": 0.009,
+      "abcd": 0.024,
+      "spokenwoz": 0.0,
+      "youtube scam": 0.1
+    }
+  },
+  "_unit": "phrase",
+  "BothBosu only": {
+    "train_calls": 2048,
+    "val_calls": 512,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 1,
+      "val_ll_per_symbol": -0.6966351199984038,
+      "val_ll_by_k": {
+        "2": -0.8087496676961194,
+        "4": -0.7711256898591881,
+        "6": -0.7421172870146057,
+        "8": -0.7264251491641438,
+        "10": -0.7187609245274694,
+        "12": -0.7097688475424487,
+        "16": -0.6966351199984038
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 3,
+      "val_ll_per_symbol": -1.715455584196747,
+      "val_ll_by_k": {
+        "2": -2.1479680312925042,
+        "4": -1.9940410251786478,
+        "6": -1.900448472801781,
+        "8": -1.8409425320050354,
+        "10": -1.8099702784420282,
+        "12": -1.7628158466873465,
+        "16": -1.715455584196747
+      }
+    },
+    "switching": {
+      "switch": 0.005,
+      "back": 0.01,
+      "p_scam_start": 0.5
+    },
+    "threshold": 0.8601677160522844,
+    "keyword_k_threshold": 2.0,
+    "tests": {
+      "BothBosu test": {
+        "hmm": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 0.996875,
+          "false_alarm_rate": 0.015625,
+          "auc": 0.99974609375,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.125,
+          "alarm_at_or_before_first_ask": 0.9344262295081968
+        },
+        "keyword-k": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 0.965625,
+          "false_alarm_rate": 0.059375,
+          "auc": 0.9796972656249999,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.23529411764705882,
+          "alarm_at_or_before_first_ask": 0.694078947368421
+        },
+        "rule": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 0.996875,
+          "false_alarm_rate": 0.16875,
+          "auc": 0.9140625,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.13333333333333333,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 0.984375,
+          "false_alarm_rate": 0.075,
+          "auc": 0.9903906250000001,
+          "median_detection_turn": 15.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      },
+      "ABCD customer service (normal)": {
+        "hmm": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.352,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "keyword-k": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.056,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "rule": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.254,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "logreg (full call, offline)": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.016,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        }
+      },
+      "SpokenWOZ real phone calls (normal)": {
+        "hmm": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.0,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "keyword-k": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.0,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "rule": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.014,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "logreg (full call, offline)": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.0,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        }
+      },
+      "YouTube real scams": {
+        "hmm": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.65,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 7.0,
+          "median_detection_fraction_of_call": 0.35,
+          "alarm_at_or_before_first_ask": 0.6
+        },
+        "keyword-k": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.65,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 16.0,
+          "median_detection_fraction_of_call": 0.625,
+          "alarm_at_or_before_first_ask": 0.45454545454545453
+        },
+        "rule": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.85,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 8.0,
+          "median_detection_fraction_of_call": 0.42857142857142855,
+          "alarm_at_or_before_first_ask": 0.7857142857142857
+        },
+        "logreg (full call, offline)": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.15,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 23.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      },
+      "ALL scams vs ALL normals": {
+        "hmm": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9764705882352941,
+          "false_alarm_rate": 0.13712121212121212,
+          "auc": 0.9893961675579324,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.125,
+          "alarm_at_or_before_first_ask": 0.9238095238095239
+        },
+        "keyword-k": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9470588235294117,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.986798128342246,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.25,
+          "alarm_at_or_before_first_ask": 0.6857142857142857
+        },
+        "rule": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9882352941176471,
+          "false_alarm_rate": 0.14242424242424243,
+          "auc": 0.9229055258467023,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.15,
+          "alarm_at_or_before_first_ask": 0.990625
+        },
+        "logreg (full call, offline)": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9352941176470588,
+          "false_alarm_rate": 0.024242424242424242,
+          "auc": 0.9879901960784313,
+          "median_detection_turn": 15.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      },
+      "our test scripts": {
+        "hmm": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.42857142857142855,
+          "auc": 0.9523809523809523,
+          "median_detection_turn": 4.0,
+          "median_detection_fraction_of_call": 0.6363636363636364,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "keyword-k": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.0,
+          "auc": 1.0,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.6363636363636364,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "rule": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.0,
+          "auc": 1.0,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.45454545454545453,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.0,
+          "auc": 1.0,
+          "median_detection_turn": 5.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 298.3
+  },
+  "with hard negatives": {
+    "train_calls": 3648,
+    "val_calls": 912,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 2,
+      "val_ll_per_symbol": -0.5741363758272634,
+      "val_ll_by_k": {
+        "2": -0.7157521600564971,
+        "4": -0.6417552331146432,
+        "6": -0.6062503374189336,
+        "8": -0.594438769781471,
+        "10": -0.5873935988189053,
+        "12": -0.5810402371614746,
+        "16": -0.5741363758272634
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 2,
+      "val_ll_per_symbol": -1.7458597761047947,
+      "val_ll_by_k": {
+        "2": -2.152888398622724,
+        "4": -2.0073053429836776,
+        "6": -1.9153653198030016,
+        "8": -1.8665928144261705,
+        "10": -1.8233059158541307,
+        "12": -1.792705097040527,
+        "16": -1.7458597761047947
+      }
+    },
+    "switching": {
+      "switch": 0.005,
+      "back": 0.01,
+      "p_scam_start": 0.5
+    },
+    "threshold": 0.7312682804432491,
+    "keyword_k_threshold": 2.0,
+    "tests": {
+      "BothBosu test": {
+        "hmm": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.071875,
+          "auc": 0.9997949218750001,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.11764705882352941,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "keyword-k": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 0.965625,
+          "false_alarm_rate": 0.059375,
+          "auc": 0.9796972656249999,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.23529411764705882,
+          "alarm_at_or_before_first_ask": 0.694078947368421
+        },
+        "rule": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 0.996875,
+          "false_alarm_rate": 0.16875,
+          "auc": 0.9140625,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.13333333333333333,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 640,
+          "n_scam": 320,
+          "n_normal": 320,
+          "recall": 0.99375,
+          "false_alarm_rate": 0.10625,
+          "auc": 0.9892578125,
+          "median_detection_turn": 15.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.003289473684210526
+        }
+      },
+      "ABCD customer service (normal)": {
+        "hmm": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.034,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "keyword-k": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.056,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "rule": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.254,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "logreg (full call, offline)": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.026,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        }
+      },
+      "SpokenWOZ real phone calls (normal)": {
+        "hmm": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.002,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "keyword-k": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.0,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "rule": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.014,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        },
+        "logreg (full call, offline)": {
+          "n": 500,
+          "n_scam": 0,
+          "n_normal": 500,
+          "recall": null,
+          "false_alarm_rate": 0.0,
+          "auc": null,
+          "median_detection_turn": null,
+          "median_detection_fraction_of_call": null,
+          "alarm_at_or_before_first_ask": null
+        }
+      },
+      "YouTube real scams": {
+        "hmm": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.75,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 2.0,
+          "median_detection_fraction_of_call": 0.15,
+          "alarm_at_or_before_first_ask": 0.9230769230769231
+        },
+        "keyword-k": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.65,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 16.0,
+          "median_detection_fraction_of_call": 0.625,
+          "alarm_at_or_before_first_ask": 0.45454545454545453
+        },
+        "rule": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.85,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 8.0,
+          "median_detection_fraction_of_call": 0.42857142857142855,
+          "alarm_at_or_before_first_ask": 0.7857142857142857
+        },
+        "logreg (full call, offline)": {
+          "n": 20,
+          "n_scam": 20,
+          "n_normal": 0,
+          "recall": 0.15,
+          "false_alarm_rate": null,
+          "auc": null,
+          "median_detection_turn": 23.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      },
+      "ALL scams vs ALL normals": {
+        "hmm": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9852941176470589,
+          "false_alarm_rate": 0.03106060606060606,
+          "auc": 0.9932453208556149,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.11764705882352941,
+          "alarm_at_or_before_first_ask": 0.9968652037617555
+        },
+        "keyword-k": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9470588235294117,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.986798128342246,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.25,
+          "alarm_at_or_before_first_ask": 0.6857142857142857
+        },
+        "rule": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9882352941176471,
+          "false_alarm_rate": 0.14242424242424243,
+          "auc": 0.9229055258467023,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.15,
+          "alarm_at_or_before_first_ask": 0.990625
+        },
+        "logreg (full call, offline)": {
+          "n": 1660,
+          "n_scam": 340,
+          "n_normal": 1320,
+          "recall": 0.9441176470588235,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.9880860071301247,
+          "median_detection_turn": 15.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.003257328990228013
+        }
+      },
+      "our test scripts": {
+        "hmm": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.0,
+          "auc": 1.0,
+          "median_detection_turn": 4.0,
+          "median_detection_fraction_of_call": 0.7272727272727273,
+          "alarm_at_or_before_first_ask": 0.5
+        },
+        "keyword-k": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.0,
+          "auc": 1.0,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.6363636363636364,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "rule": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.0,
+          "auc": 1.0,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.45454545454545453,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 10,
+          "n_scam": 3,
+          "n_normal": 7,
+          "recall": 1.0,
+          "false_alarm_rate": 0.0,
+          "auc": 1.0,
+          "median_detection_turn": 5.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 590.1
+  },
+  "_our_scripts": {
+    "grandparent-scam": {
+      "label": 1,
+      "max_p_scam": 0.783,
+      "trace": [
+        0.499,
+        0.216,
+        0.122,
+        0.004,
+        0.009,
+        0.488,
+        0.393,
+        0.365,
+        0.451,
+        0.783,
+        0.733,
+        0.491,
+        0.362,
+        0.723
+      ]
+    },
+    "real-grandson-asks-money": {
+      "label": 1,
+      "max_p_scam": 0.764,
+      "trace": [
+        0.499,
+        0.216,
+        0.362,
+        0.61,
+        0.764
+      ]
+    },
+    "bank-reminder-legit": {
+      "label": 0,
+      "max_p_scam": 0.301,
+      "trace": [
+        0.301,
+        0.045,
+        0.035,
+        0.023,
+        0.002
+      ]
+    },
+    "grandkid-hi-legit": {
+      "label": 0,
+      "max_p_scam": 0.499,
+      "trace": [
+        0.499,
+        0.216,
+        0.122,
+        0.131,
+        0.083,
+        0.006
+      ]
+    },
+    "tech-support-scam": {
+      "label": 1,
+      "max_p_scam": 1.0,
+      "trace": [
+        0.957,
+        1.0,
+        1.0,
+        0.987,
+        0.96,
+        0.999,
+        1.0,
+        0.977,
+        0.998,
+        0.984
+      ]
+    },
+    "bank-fraud-check-legit": {
+      "label": 0,
+      "max_p_scam": 0.301,
+      "trace": [
+        0.301,
+        0.045,
+        0.035,
+        0.023,
+        0.016,
+        0.007,
+        0.002
+      ]
+    },
+    "family-emergency-legit": {
+      "label": 0,
+      "max_p_scam": 0.499,
+      "trace": [
+        0.499,
+        0.216,
+        0.122,
+        0.004,
+        0.005,
+        0.005
+      ]
+    },
+    "internet-provider-legit": {
+      "label": 0,
+      "max_p_scam": 0.301,
+      "trace": [
+        0.301,
+        0.267,
+        0.181,
+        0.005,
+        0.008,
+        0.004
+      ]
+    },
+    "doctor-office-legit": {
+      "label": 0,
+      "max_p_scam": 0.339,
+      "trace": [
+        0.301,
+        0.339,
+        0.26,
+        0.161,
+        0.003,
+        0.006
+      ]
+    },
+    "church-donation-legit": {
+      "label": 0,
+      "max_p_scam": 0.301,
+      "trace": [
+        0.301,
+        0.267,
+        0.181,
+        0.005,
+        0.008,
+        0.004
+      ]
+    }
+  },
+  "unseen-type: refund": {
+    "train_calls": 3392,
+    "val_calls": 848,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 2,
+      "val_ll_per_symbol": -0.5741363758272632,
+      "val_ll_by_k": {
+        "2": -0.7157521600564967,
+        "4": -0.6417552331146431,
+        "6": -0.6062503374189335,
+        "8": -0.5944387697814707,
+        "10": -0.5873935988189053,
+        "12": -0.581040237161474,
+        "16": -0.5741363758272632
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 3,
+      "val_ll_per_symbol": -1.7144085787611982,
+      "val_ll_by_k": {
+        "2": -2.147079107935303,
+        "4": -2.0088165628952073,
+        "6": -1.9004229317044377,
+        "8": -1.833575529175269,
+        "10": -1.7909055456088367,
+        "12": -1.7470305038745189,
+        "16": -1.7144085787611982
+      }
+    },
+    "switching": {
+      "switch": 0.005,
+      "back": 0.01,
+      "p_scam_start": 0.05
+    },
+    "threshold": 0.4934941167886809,
+    "keyword_k_threshold": 2.0,
+    "tests": {
+      "held-out 'refund' vs all normals": {
+        "hmm": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.029545454545454545,
+          "auc": 0.9997727272727274,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.11145510835913312,
+          "alarm_at_or_before_first_ask": 0.975
+        },
+        "keyword-k": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.9955729166666667,
+          "median_detection_turn": 2.0,
+          "median_detection_fraction_of_call": 0.2,
+          "alarm_at_or_before_first_ask": 0.8875
+        },
+        "rule": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.14242424242424243,
+          "auc": 0.9287878787878787,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.14285714285714285,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.02878787878787879,
+          "auc": 0.9972159090909091,
+          "median_detection_turn": 14.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 515.3
+  },
+  "unseen-type: reward": {
+    "train_calls": 3392,
+    "val_calls": 848,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 2,
+      "val_ll_per_symbol": -0.5741363758272632,
+      "val_ll_by_k": {
+        "2": -0.7157521600564967,
+        "4": -0.6417552331146431,
+        "6": -0.6062503374189335,
+        "8": -0.5944387697814707,
+        "10": -0.5873935988189053,
+        "12": -0.581040237161474,
+        "16": -0.5741363758272632
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 0,
+      "val_ll_per_symbol": -1.6977150350215686,
+      "val_ll_by_k": {
+        "2": -2.1372371253941655,
+        "4": -1.9846854664440272,
+        "6": -1.8768731339824944,
+        "8": -1.8192101990877072,
+        "10": -1.7733844496627884,
+        "12": -1.7377690168302844,
+        "16": -1.6977150350215686
+      }
+    },
+    "switching": {
+      "switch": 0.005,
+      "back": 0.01,
+      "p_scam_start": 0.5
+    },
+    "threshold": 0.6306027279675644,
+    "keyword_k_threshold": 2.0,
+    "tests": {
+      "held-out 'reward' vs all normals": {
+        "hmm": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.9875,
+          "false_alarm_rate": 0.03409090909090909,
+          "auc": 0.9964772727272727,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.15789473684210525,
+          "alarm_at_or_before_first_ask": 0.9240506329113924
+        },
+        "keyword-k": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.9875,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.9915104166666666,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.2631578947368421,
+          "alarm_at_or_before_first_ask": 0.5063291139240507
+        },
+        "rule": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.14242424242424243,
+          "auc": 0.9287878787878787,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.17424242424242425,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.9375,
+          "false_alarm_rate": 0.03333333333333333,
+          "auc": 0.9927935606060605,
+          "median_detection_turn": 13.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 521.0
+  },
+  "unseen-type: ssn": {
+    "train_calls": 3392,
+    "val_calls": 848,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 2,
+      "val_ll_per_symbol": -0.5741363758272632,
+      "val_ll_by_k": {
+        "2": -0.7157521600564967,
+        "4": -0.6417552331146431,
+        "6": -0.6062503374189335,
+        "8": -0.5944387697814707,
+        "10": -0.5873935988189053,
+        "12": -0.581040237161474,
+        "16": -0.5741363758272632
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 4,
+      "val_ll_per_symbol": -1.611447780773657,
+      "val_ll_by_k": {
+        "2": -2.0613058452323934,
+        "4": -1.8855366490432504,
+        "6": -1.7671426310227674,
+        "8": -1.7117886883393278,
+        "10": -1.7023313749989373,
+        "12": -1.6423250098879505,
+        "16": -1.611447780773657
+      }
+    },
+    "switching": {
+      "switch": 0.02,
+      "back": 0.1,
+      "p_scam_start": 0.5
+    },
+    "threshold": 0.7600319411516623,
+    "keyword_k_threshold": 2.0,
+    "tests": {
+      "held-out 'ssn' vs all normals": {
+        "hmm": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.9875,
+          "false_alarm_rate": 0.030303030303030304,
+          "auc": 0.9971496212121211,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.13333333333333333,
+          "alarm_at_or_before_first_ask": 0.9746835443037974
+        },
+        "keyword-k": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.9875,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.993091856060606,
+          "median_detection_turn": 2.0,
+          "median_detection_fraction_of_call": 0.22727272727272727,
+          "alarm_at_or_before_first_ask": 0.45569620253164556
+        },
+        "rule": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.14242424242424243,
+          "auc": 0.9287878787878787,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.1396103896103896,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 1.0,
+          "false_alarm_rate": 0.031818181818181815,
+          "auc": 0.9960227272727273,
+          "median_detection_turn": 15.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 514.0
+  },
+  "unseen-type: support": {
+    "train_calls": 3392,
+    "val_calls": 848,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 2,
+      "val_ll_per_symbol": -0.5741363758272632,
+      "val_ll_by_k": {
+        "2": -0.7157521600564967,
+        "4": -0.6417552331146431,
+        "6": -0.6062503374189335,
+        "8": -0.5944387697814707,
+        "10": -0.5873935988189053,
+        "12": -0.581040237161474,
+        "16": -0.5741363758272632
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 2,
+      "val_ll_per_symbol": -1.6364099993892962,
+      "val_ll_by_k": {
+        "2": -2.0340736308004397,
+        "4": -1.8711572703102537,
+        "6": -1.7831816303658192,
+        "8": -1.7418662487663303,
+        "10": -1.7111963998960986,
+        "12": -1.6706170345251217,
+        "16": -1.6364099993892962
+      }
+    },
+    "switching": {
+      "switch": 0.005,
+      "back": 0.01,
+      "p_scam_start": 0.2
+    },
+    "threshold": 0.6488997099122075,
+    "keyword_k_threshold": 2.0,
+    "tests": {
+      "held-out 'support' vs all normals": {
+        "hmm": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.9875,
+          "false_alarm_rate": 0.031818181818181815,
+          "auc": 0.9987973484848485,
+          "median_detection_turn": 0.0,
+          "median_detection_fraction_of_call": 0.1,
+          "alarm_at_or_before_first_ask": 0.9848484848484849
+        },
+        "keyword-k": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.8875,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.9805871212121212,
+          "median_detection_turn": 4.0,
+          "median_detection_fraction_of_call": 0.3,
+          "alarm_at_or_before_first_ask": 0.9696969696969697
+        },
+        "rule": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.9875,
+          "false_alarm_rate": 0.14242424242424243,
+          "auc": 0.9225378787878787,
+          "median_detection_turn": 0.0,
+          "median_detection_fraction_of_call": 0.1,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 1400,
+          "n_scam": 80,
+          "n_normal": 1320,
+          "recall": 0.925,
+          "false_alarm_rate": 0.035606060606060606,
+          "auc": 0.9906628787878787,
+          "median_detection_turn": 16.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 528.8
+  },
+  "cross-source: single \u2192 multi": {
+    "train_calls": 1024,
+    "val_calls": 256,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 4,
+      "val_ll_per_symbol": -0.5300508543897429,
+      "val_ll_by_k": {
+        "2": -0.6128223056593485,
+        "4": -0.5564910997101179,
+        "6": -0.5467414825582779,
+        "8": -0.5514254710214297,
+        "10": -0.5435525036760744,
+        "12": -0.5450274860158524,
+        "16": -0.5300508543897429
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 3,
+      "val_ll_per_symbol": -1.3497367694909315,
+      "val_ll_by_k": {
+        "2": -1.7449669026598267,
+        "4": -1.545340518881725,
+        "6": -1.496156628567665,
+        "8": -1.4443545021152222,
+        "10": -1.4128671447441965,
+        "12": -1.4040200350278393,
+        "16": -1.3497367694909315
+      }
+    },
+    "switching": {
+      "switch": 0.05,
+      "back": 0.01,
+      "p_scam_start": 0.2
+    },
+    "threshold": 0.7582228277783963,
+    "keyword_k_threshold": 2.0,
+    "tests": {
+      "multi test": {
+        "hmm": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 1.0,
+          "false_alarm_rate": 0.5125,
+          "auc": 0.9617578124999999,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.15384615384615385,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "keyword-k": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 0.95,
+          "false_alarm_rate": 0.1,
+          "auc": 0.96935546875,
+          "median_detection_turn": 3.0,
+          "median_detection_fraction_of_call": 0.26666666666666666,
+          "alarm_at_or_before_first_ask": 0.6891891891891891
+        },
+        "rule": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 0.99375,
+          "false_alarm_rate": 0.2125,
+          "auc": 0.890625,
+          "median_detection_turn": 1.0,
+          "median_detection_fraction_of_call": 0.18181818181818182,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 1.0,
+          "false_alarm_rate": 0.2375,
+          "auc": 0.9978515625,
+          "median_detection_turn": 12.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 126.3
+  },
+  "cross-source: multi \u2192 single": {
+    "train_calls": 1024,
+    "val_calls": 256,
+    "normal_hmm": {
+      "k": 16,
+      "seed": 0,
+      "val_ll_per_symbol": -0.6845848578548028,
+      "val_ll_by_k": {
+        "2": -0.8017893020740461,
+        "4": -0.7475424677705481,
+        "6": -0.710998174349341,
+        "8": -0.6960836572030884,
+        "10": -0.698239357316249,
+        "12": -0.6902309248561581,
+        "16": -0.6845848578548028
+      }
+    },
+    "scam_hmm": {
+      "k": 16,
+      "seed": 1,
+      "val_ll_per_symbol": -1.7810488071056227,
+      "val_ll_by_k": {
+        "2": -2.1901534914948257,
+        "4": -2.0574902015754577,
+        "6": -1.9366028600883805,
+        "8": -1.896458898214417,
+        "10": -1.8619792821970542,
+        "12": -1.8115754948430445,
+        "16": -1.7810488071056227
+      }
+    },
+    "switching": {
+      "switch": 0.005,
+      "back": 0.01,
+      "p_scam_start": 0.5
+    },
+    "threshold": 0.5001000820598241,
+    "keyword_k_threshold": 3.0,
+    "tests": {
+      "single test": {
+        "hmm": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 0.9625,
+          "false_alarm_rate": 0.1625,
+          "auc": 0.92859375,
+          "median_detection_turn": 0.0,
+          "median_detection_fraction_of_call": 0.06458333333333333,
+          "alarm_at_or_before_first_ask": 0.9933774834437086
+        },
+        "keyword-k": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 0.7375,
+          "false_alarm_rate": 0.0,
+          "auc": 0.99607421875,
+          "median_detection_turn": 8.0,
+          "median_detection_fraction_of_call": 0.47017543859649125,
+          "alarm_at_or_before_first_ask": 0.1864406779661017
+        },
+        "rule": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 1.0,
+          "false_alarm_rate": 0.125,
+          "auc": 0.9375,
+          "median_detection_turn": 0.0,
+          "median_detection_fraction_of_call": 0.06666666666666667,
+          "alarm_at_or_before_first_ask": 1.0
+        },
+        "logreg (full call, offline)": {
+          "n": 320,
+          "n_scam": 160,
+          "n_normal": 160,
+          "recall": 0.86875,
+          "false_alarm_rate": 0.0375,
+          "auc": 0.98078125,
+          "median_detection_turn": 16.0,
+          "median_detection_fraction_of_call": 1.0,
+          "alarm_at_or_before_first_ask": 0.0
+        }
+      }
+    },
+    "seconds": 139.1
+  },
+  "_seconds_total": 3259.1
+}

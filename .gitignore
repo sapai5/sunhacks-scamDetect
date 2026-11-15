@@ -11,3 +11,5 @@ web-dist.zip
 .env.*
 !.env.example
 backend/bridge-outputs.json
+backend/scripts/out/
+__pycache__/
