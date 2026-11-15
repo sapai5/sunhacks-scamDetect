@@ -46,7 +46,7 @@ export default function E1Idle({ familyCount = 3, scripts = [], micAvailable, on
       <div className="screen-center">
         <InstallHint />
         <AlertsCard />
-        <RiskLight state="green" size="badge" label="Protected" />
+        <RiskLight state="green" size="badge" label="Protected" ripple />
         <h1 className="screen-title">You're protected</h1>
         <p className="screen-lede">Calls from numbers you don't know are checked while you talk. This screen changes by itself when one comes in.</p>
         <p className="screen-note">{family}</p>
@@ -68,7 +68,7 @@ export default function E1Idle({ familyCount = 3, scripts = [], micAvailable, on
   return (
     <div className="screen-center">
       <InstallHint />
-      <RiskLight state="green" size="badge" label="Protected" />
+      <RiskLight state="green" size="badge" label="Protected" ripple />
       <h1 className="screen-title">You're protected</h1>
       <p className="screen-lede">ScamDetermine listens to your calls and warns you if one turns into a scam.</p>
       <p className="screen-note">{family}</p>

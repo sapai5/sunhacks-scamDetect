@@ -38,9 +38,23 @@
 .risk-light--hero .risk-light__label { font-size: 28px; }
 .risk-light--badge .risk-light__label { font-size: 14px; }
 
+/* Soft rings on the home "Protected" dot. Absolute so they don't join the lamp's grid. */
+.risk-light--ripple .risk-light__lamp::before,
+.risk-light--ripple .risk-light__lamp::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--lamp);
+  opacity: 0;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: no-preference) {
   .risk-light--hero[data-state='red'] .risk-light__lamp { animation: halo-pulse 1.6s ease-in-out infinite; }
   .risk-light--hero[data-state='verifying'] .risk-light__core { animation: core-breathe 2.2s ease-in-out infinite; }
+  .risk-light--ripple .risk-light__lamp::before,
+  .risk-light--ripple .risk-light__lamp::after { animation: icon-ripple 2.8s ease-out infinite; }
+  .risk-light--ripple .risk-light__lamp::after { animation-delay: -1.4s; }
 }
 @keyframes halo-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--lamp) 28%, transparent); }
@@ -49,6 +63,10 @@
 @keyframes core-breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(0.94); }
+}
+@keyframes icon-ripple {
+  0% { transform: scale(0.85); opacity: 0.4; }
+  100% { transform: scale(2.15); opacity: 0; }
 }
 
 /* ---- Risk/StatusPanel ------------------------------------------------------------------------ */

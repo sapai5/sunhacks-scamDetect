@@ -1,6 +1,7 @@
 // Elder-facing components. Each maps 1:1 to a Figma component (see the "Figma:" tag).
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import type { ElderView } from '../lib/callState';
+import { backspacePhone, caretForDigits, deletePhone, formatUsPhone, keptDigitsBefore } from '../lib/phone';
 import './components.css';
 
 export type RiskViewState = ElderView;
@@ -14,13 +15,33 @@ export const RISK_LABEL: Record<RiskViewState, string> = {
 };
 
 /** Figma: Risk/Light. hero = 220px light + 28px label; badge = 32px light + 14px label. */
-export function RiskLight({ state, size = 'hero', label }: { state: RiskViewState; size?: 'hero' | 'badge'; label?: string }) {
+export function RiskLight({
+  state,
+  size = 'hero',
+  label,
+  showLabel = true,
+  ripple = false,
+}: {
+  state: RiskViewState;
+  size?: 'hero' | 'badge';
+  label?: string;
+  /** False when the surrounding text already says the state, as on a past-call row. */
+  showLabel?: boolean;
+  /** Slow rings around the dot. Used on the home "Protected" light. */
+  ripple?: boolean;
+}) {
   return (
-    <div className={`risk-light risk-light--${size}`} data-state={state} role="status" aria-live="polite">
+    <div
+      className={`risk-light risk-light--${size}${ripple ? ' risk-light--ripple' : ''}`}
+      data-state={state}
+      role={showLabel ? 'status' : undefined}
+      aria-live={showLabel ? 'polite' : undefined}
+      aria-hidden={showLabel ? undefined : true}
+    >
       <span className="risk-light__lamp" aria-hidden="true">
         <span className="risk-light__core" />
       </span>
-      <span className="risk-light__label">{label ?? RISK_LABEL[state]}</span>
+      {showLabel && <span className="risk-light__label">{label ?? RISK_LABEL[state]}</span>}
     </div>
   );
 }
@@ -118,16 +139,60 @@ export function Field({
   placeholder?: string;
   autoComplete?: string;
 }) {
+  const input = useRef<HTMLInputElement>(null);
+  const caret = useRef<number | null>(null);
+  const shown = type === 'tel' ? formatUsPhone(value) : value;
+  // Put the caret back after a format. React would otherwise leave it at the end.
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (caret.current == null || !el || document.activeElement !== el) return;
+    el.setSelectionRange(caret.current, caret.current);
+    caret.current = null;
+  }, [shown]);
+
+  const commit = (next: string, pos: number, el?: HTMLInputElement) => {
+    caret.current = pos;
+    if (next !== shown) onChange(next);
+    else if (el) {
+      // Already 10 digits: drop the extra keystroke and leave the caret where it was.
+      el.value = shown;
+      el.setSelectionRange(pos, pos);
+      caret.current = null;
+    }
+  };
+
   return (
     <label className="field">
       <span className="field__label">{label}</span>
       <input
+        ref={input}
         className="field__input"
         type={type}
-        value={value}
+        inputMode={type === 'tel' ? 'tel' : undefined}
+        value={shown}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        onChange={(e) => onChange(e.target.value)}
+        autoCorrect={type === 'tel' ? 'off' : undefined}
+        spellCheck={type === 'tel' ? false : undefined}
+        onKeyDown={(e) => {
+          if (type !== 'tel' || (e.key !== 'Backspace' && e.key !== 'Delete')) return;
+          const el = e.currentTarget;
+          const start = el.selectionStart ?? 0;
+          if (start !== (el.selectionEnd ?? 0)) return;
+          const edit = e.key === 'Backspace' ? backspacePhone(shown, start) : deletePhone(shown, start);
+          if (!edit) return;
+          e.preventDefault();
+          commit(edit.value, edit.caret, el);
+        }}
+        onChange={(e) => {
+          if (type !== 'tel') {
+            onChange(e.target.value);
+            return;
+          }
+          const next = formatUsPhone(e.target.value);
+          const pos = caretForDigits(next, keptDigitsBefore(e.target.value, e.target.selectionStart ?? e.target.value.length));
+          commit(next, pos, e.target);
+        }}
       />
     </label>
   );
