@@ -2,6 +2,7 @@
 // phone numbers from backend/local.config.json (gitignored); AWS endpoints from the deployed stacks.
 import { existsSync, readFileSync } from 'node:fs';
 import { CloudFormationClient, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
+import type { SonicPersona } from './sonic.js';
 
 const envPath = new URL('./.env', import.meta.url);
 if (existsSync(envPath)) process.loadEnvFile(envPath);
@@ -31,6 +32,17 @@ export interface BridgeConfig {
   callsTable: string;
   eldersTable: string;
   agentUrl: string;
+  /**
+   * Who talks to the caller during a takeover. 'say' (default): the Agent Lambda's lines with Twilio
+   * <Say>. 'sonic' (AGENT_VOICE=sonic): Amazon Nova Sonic over a two-way stream. Opt-in until it has
+   * been verified on a real call.
+   */
+  agentVoice: 'sonic' | 'say';
+  /** The agent's persona from cdk.json, used when the elder has no settings in the Elders table. */
+  persona: SonicPersona;
+  /** LOCAL_BACKEND=1: run the IngestFn and Agent Lambda code in the bridge (see local-backend.ts). */
+  localBackend: boolean;
+  familyTopicArn: string;
   /** The web app (Amplify), for the links in texts to the elder. */
   webUrl: string;
 }
@@ -45,6 +57,7 @@ export async function loadConfig(): Promise<BridgeConfig> {
     elderPhone: string;
     trustedContacts?: string[];
   };
+  const ctx = JSON.parse(readFileSync(new URL('../cdk.json', import.meta.url), 'utf8')).context as Record<string, string>;
   const region = process.env.AWS_REGION ?? 'us-east-1';
   const cf = new CloudFormationClient({ region });
   const [stage1, data] = await Promise.all([outputs(cf, 'ScamShieldStage1'), outputs(cf, 'ScamShieldData')]);
@@ -65,6 +78,15 @@ export async function loadConfig(): Promise<BridgeConfig> {
     callsTable: data.CallsTableName,
     eldersTable: data.EldersTableName,
     agentUrl: stage1.AgentUrl,
+    agentVoice: process.env.AGENT_VOICE === 'sonic' ? 'sonic' : 'say',
+    localBackend: process.env.LOCAL_BACKEND === '1',
+    familyTopicArn: stage1.FamilyTopicArn,
+    persona: {
+      elderName: ctx.elderName,
+      agentName: ctx.agentName,
+      agentRelation: ctx.agentRelation,
+      verificationQuestion: ctx.verificationQuestion,
+    },
     webUrl: process.env.WEB_URL ?? stage1.WebUrl,
   };
 }

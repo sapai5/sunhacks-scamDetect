@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { encodeMulaw, mulawToPcm16, pcm16ToMulaw, speechMs } from '../twilio/audio.js';
-import { agentTurn, directDial, screenedCall } from '../twilio/twiml.js';
+import { openingLine, sonicSystemPrompt } from '../twilio/sonic.js';
+import { agentStream, agentTurn, directDial, screenedCall } from '../twilio/twiml.js';
+
+describe('Nova Sonic takeover', () => {
+  const persona = { elderName: 'Rose', agentName: 'Mike', agentRelation: 'son', verificationQuestion: 'What did we name the family dog?' };
+
+  it('says the opening line, then connects the caller to the two-way agent stream', () => {
+    const xml = agentStream({ opening: openingLine(persona), streamUrl: 'wss://bridge.example/agent', token: 'tok', callSid: 'CA1' });
+    expect(xml).toMatch(/<Say[^>]*>Hi, this is Mike, her son\..*<\/Say><Connect><Stream url="wss:\/\/bridge\.example\/agent">/);
+    expect(xml).toContain('<Parameter name="token" value="tok"/>');
+  });
+
+  it('gives the voice model the family question and the call so far, and tells it not to end the call', () => {
+    const prompt = sonicSystemPrompt(persona, [{ speaker: 'caller', text: 'I need two thousand dollars for bail.' }]);
+    expect(prompt).toContain('What did we name the family dog?');
+    expect(prompt).toContain('[caller] I need two thousand dollars for bail.');
+    expect(prompt).toContain('never say goodbye');
+  });
+});
 
 describe('mu-law audio', () => {
   it('round-trips samples within G.711 quantization error', () => {
