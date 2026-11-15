@@ -38,7 +38,7 @@ import { elderTexter } from './elderTexts.js';
 import { loadLocalBackend } from './local-backend.js';
 import { openingLine, sonicSystemPrompt, startSonic, type SonicPersona, type SonicSession } from './sonic.js';
 import { startTrackTranscriber, type TrackTranscriber } from './transcriber.js';
-import { agentStream, agentTurn as agentTwiml, directDial, hangup, idle, sayAndHangUp, screenedCall } from './twiml.js';
+import { agentStream, agentTurn as agentTwiml, directDial, hangup, idle, screenedCall } from './twiml.js';
 
 const cfg = await loadConfig();
 const DRY_RUN = process.env.TWILIO_DRY_RUN === '1'; // local simulation: no Twilio REST calls
@@ -483,7 +483,9 @@ async function agentTurn(call: Call) {
       call.ingestChain = call.ingestChain.then(() => ingest(call, { callId: call.callSid, elderId: cfg.elderId, speaker: 'agent', text: a.say, ts, seq }));
     }
     // After the line: keep listening, ring the elder back (verified), or hang up (scam / caller gone).
-    const then = a.status === 'active' ? 'listen' : a.status === 'verified' || a.status === 'stopped' ? 'handback' : 'hangup';
+    // Every verdict hands the call back to the elder (her phone rings again); we never hang up on her.
+    // Only a caller who has gone quiet is hung up on.
+    const then = a.status === 'active' ? 'listen' : a.status === 'caller_left' ? 'hangup' : 'handback';
     await speak(call, a.say, then);
     log(call.callSid, 'agent', { status: a.status, say: a.say });
     if (a.status !== 'active') return await finishAgent(call, a.status, a.say, a.summary);
@@ -571,7 +573,7 @@ async function finishAgent(call: Call, status: AgentStatus, lastLine: string, su
   call.agentStatus = status;
   texts.update(call.callSid, { agentStatus: status });
   log(call.callSid, 'agent finished', { status, lastLine });
-  // The TwiML from speak() already rang the elder back (verified) or hung up (scam / caller left).
+  // The TwiML from speak() already rang the elder back (any verdict) or hung up on a gone caller.
   if (status === 'caller_left' && !DRY_RUN) {
     // Reached from the silence timer, which didn't go through speak(): end the call ourselves.
     await tw.calls(call.callSid).update({ status: 'completed' }).catch((err) => console.error('ending the call failed', err));
@@ -592,8 +594,12 @@ const VERIFIED_LINE = "Thanks, that's right. I'll let you two talk.";
 /** Said to both when the elder says they know the caller and sends the agent away. */
 const STEP_BACK_LINE = "Okay, I'll step back. I'm here if you need me.";
 /** Said to the elder alone after the caller is hung up on. */
-const ELDER_SCAM_LINE = "That caller couldn't prove who they were, so I ended the call. Please don't call that number back.";
-const ELDER_QUIET_LINE = 'The caller went quiet, so I ended the call.';
+/**
+ * Closing lines when the agent steps back without ending the call: the elder stays on the line and
+ * decides for herself whether to hang up. Heard by both the caller and the elder.
+ */
+const SCAM_STEP_BACK_LINE = "I couldn't confirm who you are, so nobody here is sending money, gift cards or any numbers. I'll step back now.";
+const QUIET_STEP_BACK_LINE = "I can't hear the caller anymore, so I'll step back now.";
 /** Transcribe reports the caller's words sentence by sentence; judge once they stop coming for this long. */
 const JUDGE_DELAY_MS = 700;
 
@@ -892,7 +898,7 @@ async function stepBack(call: Call) {
   caller?.close();
 }
 
-/** A verdict is in: Sonic goes quiet, the closing line is said, and the agent steps back or the call is ended. */
+/** A verdict is in: Sonic goes quiet, the closing line is said, and the agent steps back. The elder decides how the call ends. */
 async function closeSonicTakeover(call: Call, t: SonicTakeover, status: AgentStatus, say: string, summary: string) {
   t.closing = true;
   stopSonic(call, t);
@@ -901,9 +907,16 @@ async function closeSonicTakeover(call: Call, t: SonicTakeover, status: AgentSta
   if (!(await setAgentStatus(call, 'active', status, summary))) return await stepBack(call); // "Let me talk" won
   call.agentStatus = status;
   texts.update(call.callSid, { agentStatus: status });
-  // Verified, or the elder said they know the caller: with the elder on the line, the agent just steps back.
-  const together = (status === 'verified' || status === 'stopped') && Boolean(call.legs?.elder.ws);
-  const line = !together ? say : status === 'verified' ? VERIFIED_LINE : say || STEP_BACK_LINE;
+  // With the elder on the line, the agent always just steps back: we never hang up on her or force her
+  // off the call. She decides whether to keep talking (verified, "stopped") or hang up (scam, quiet caller).
+  const together = Boolean(call.legs?.elder.ws);
+  const closing: Partial<Record<AgentStatus, string>> = {
+    verified: VERIFIED_LINE,
+    stopped: say || STEP_BACK_LINE,
+    scam_confirmed: SCAM_STEP_BACK_LINE,
+    caller_left: QUIET_STEP_BACK_LINE,
+  };
+  const line = together ? (closing[status] ?? STEP_BACK_LINE) : say;
   if (line) recordLine(call, 'agent', line);
   log(call.callSid, 'agent finished', { status, say: line, voice: 'sonic' });
   try {
@@ -913,24 +926,12 @@ async function closeSonicTakeover(call: Call, t: SonicTakeover, status: AgentSta
       for (const leg of Object.values(call.legs ?? {})) leg.voice = Buffer.alloc(0); // cut Sonic off mid-sentence
       return playVoice(call, await tts(line));
     }
+    // The elder isn't on the line (she hung up during the takeover). Closing line to the caller, then ring
+    // her back so she's the one who decides how the call ends. Only a gone caller gets hung up on.
     const legs = call.legs;
     call.legs = undefined;
-    if (legs?.elder.ws) {
-      // The caller is about to be hung up on: tell the elder why, then end their leg too.
-      const elderLine = status === 'scam_confirmed' ? ELDER_SCAM_LINE : ELDER_QUIET_LINE;
-      if (DRY_RUN || !call.elderSid) {
-        log(call.callSid, 'would say to the elder', { text: elderLine });
-        legs.elder.ws.close();
-      } else {
-        const id = randomUUID();
-        turns.set(id, sayAndHangUp(elderLine));
-        setTimeout(() => turns.delete(id), 60_000);
-        await tw.calls(call.elderSid).update({ url: turnUrl(call, id) }).catch((err) => (console.error('telling the elder failed', err), legs.elder.ws?.close()));
-      }
-    }
-    // The caller: the closing line, then hang up (or, verified with the elder gone, ring the elder back).
     // The redirect ends the caller's two-way stream.
-    await speak(call, line, status === 'verified' || status === 'stopped' ? 'handback' : 'hangup');
+    await speak(call, line, status === 'caller_left' ? 'hangup' : 'handback');
     legs?.caller.ws?.close();
   } catch (err) {
     console.error('closing line failed', err);

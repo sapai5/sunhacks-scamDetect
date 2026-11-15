@@ -55,6 +55,17 @@ describe('parseAgentReply', () => {
     expect(r.say).toBe(TIMEOUT_LINE);
   });
 
+  it('a scam verdict never hangs up: it ends on the step-back warning, not a goodbye or another request', () => {
+    for (const say of ['Okay. Goodbye.', 'I need to know which jail you are at so we can verify this.', '']) {
+      const r = parseAgentReply(reply({ say, status: 'scam_confirmed' }), [], 'Biscuit');
+      expect(r.say).toBe(GOODBYE_LINE);
+      expect(r.say).toMatch(/step back/i);
+      expect(r.say).not.toMatch(/goodbye|hang up/i);
+    }
+    const own = "Okay, nobody here is sending anything. I'll step back now.";
+    expect(parseAgentReply(reply({ say: own, status: 'scam_confirmed' }), [], 'Biscuit').say).toBe(own);
+  });
+
   it('closes with a goodbye instead of a question once the scam is confirmed', () => {
     const r = parseAgentReply(reply({ say: 'Can you tell me the name?', status: 'scam_confirmed' }), [], 'Biscuit');
     expect(r.say).toBe(GOODBYE_LINE);

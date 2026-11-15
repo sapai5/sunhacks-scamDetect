@@ -60,10 +60,10 @@ export function repeatsSecurityCheck(line: string, agentLines: string[], verific
 }
 
 export const SAFE_LINE = "Sorry, I can't help with that over the phone. Can you answer my question first?";
-export const GOODBYE_LINE = "We're going to call the family directly on a number we already have. Goodbye.";
+export const GOODBYE_LINE = "We'll check this with the family directly, so nobody here is sending money or any numbers. I'll step back now.";
 export const HANDBACK_LINE = 'Okay, thanks. Sorry about that, we just have to be careful. Here she is.';
 export const STEP_BACK_LINE = "Okay, I'll step back. I'm here if you need me.";
-export const TIMEOUT_LINE = "I'm going to let you go. We'll call back on a number we already have. Goodbye.";
+export const TIMEOUT_LINE = "I couldn't confirm who you are, so nobody here is sending anything. We'll call the family on a number we already have. I'll step back now.";
 
 type Outcome = Pick<AgentResponse, 'say' | 'status' | 'summary'>;
 const STATUSES: AgentResponse['status'][] = ['active', 'verified', 'scam_confirmed', 'caller_left', 'stopped'];
@@ -125,7 +125,9 @@ export function parseAgentReply(text: string, utterances: Utterance[], verificat
   }
   if (status === 'active' && !say) say = SAFE_LINE;
   // A final decision must close the conversation, not ask another question.
-  if (status === 'scam_confirmed' && (!say || say.includes('?'))) say = GOODBYE_LINE;
+  // A scam verdict always ends on the standard warning unless the model's own line already steps back:
+  // the elder stays on the call, so the last thing she hears must be "nobody here is sending anything".
+  if (status === 'scam_confirmed' && (!say || say.includes('?') || !/step(ping)? back/i.test(say))) say = GOODBYE_LINE;
   if (status === 'verified' && (!say || say.includes('?'))) say = HANDBACK_LINE;
   if (status === 'stopped' && (!say || say.includes('?'))) say = STEP_BACK_LINE;
   return { say, status, summary };
