@@ -1,7 +1,8 @@
 // Text messages to the elder's phone during a screened call (see lambda/shared/elderAlerts.ts for
 // when). Text banners show over the phone-call screen on any phone, with a link into the app.
 //
-// Off with TWILIO_TEXTS=0. A failed text is logged and skipped; it never affects the call.
+// Off unless TWILIO_TEXTS=1: a trial account refuses these texts (error 572006, predefined templates
+// only), so they'd just fail on every call. A failed text is logged and skipped; it never affects the call.
 // US carriers may block texts from an unregistered number (Twilio error 30034, A2P 10DLC):
 // then Web Push is the channel until the number is registered.
 import type twilio from 'twilio';
@@ -21,7 +22,7 @@ export function elderTexter(opts: {
   dryRun: boolean;
   log: (callSid: string, msg: string, extra?: object) => void;
 }): ElderTexter {
-  const enabled = process.env.TWILIO_TEXTS !== '0' && Boolean(opts.to);
+  const enabled = process.env.TWILIO_TEXTS === '1' && Boolean(opts.to);
   const views = new Map<string, AlertView>();
   const sent = new Map<string, Set<string>>();
 
