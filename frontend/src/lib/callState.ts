@@ -14,6 +14,21 @@ export function elderView(risk: RiskState | null, verification: Verification): E
   return risk.level;
 }
 
+/**
+ * What a RiskState pushed for a phone call does to the call on screen:
+ * - 'new': start showing it (nothing running, or another phone call is showing)
+ * - 'update': it's the call on screen and newer than what's shown
+ * - 'ignore': a speakerphone/demo call is running, the elder already ended this call, or it's stale
+ */
+export function pushedStateEffect(
+  current: { callId: string; running: boolean; phone: boolean; risk: RiskState | null },
+  next: RiskState,
+): 'new' | 'update' | 'ignore' {
+  if (current.callId !== next.callId) return current.running && !current.phone ? 'ignore' : 'new';
+  if (!current.running || (current.risk && next.updatedAt <= current.risk.updatedAt)) return 'ignore';
+  return 'update';
+}
+
 export const VIEW_LABEL: Record<ElderView, string> = {
   listening: 'Listening',
   green: 'Safe',
