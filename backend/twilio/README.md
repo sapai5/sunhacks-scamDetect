@@ -11,6 +11,7 @@ agent_takeover → Calls.agentStatus = active (scoring pauses, the app shows the
                → the line goes to IngestFn as speaker 'agent' (the app shows it)
 "Let me talk"  → the app sets Calls.agentStatus = stopped → the bridge checks before each line and goes quiet
 scam confirmed → goodbye, then the call is ended for everyone
+call ends      → Calls.ended = true (after queued sentences are scored) → the app closes the call, shows the summary
 ```
 
 The server runs on a laptop and is reachable through a tunnel. Detection, alerts and the agent

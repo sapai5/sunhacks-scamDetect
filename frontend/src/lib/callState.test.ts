@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { RiskState } from '../../../contracts/index.js';
+import type { PushMessage } from '../../../contracts/index.js';
 import { PHONE_CALL_QUIET_MS, pushedStateEffect } from './callState';
 
-const state = (callId: string, updatedAt: number): RiskState => ({
+const state = (callId: string, updatedAt: number, ended?: boolean): PushMessage => ({
+  agentStatus: 'idle',
+  ended,
   callId,
   risk: 40,
   level: 'yellow',
@@ -38,5 +40,11 @@ describe('pushedStateEffect', () => {
     expect(pushedStateEffect(showing, state('p1', 5))).toBe('update'); // same RiskState, new agent progress
     expect(pushedStateEffect(showing, state('p1', 4))).toBe('ignore');
     expect(pushedStateEffect({ ...showing, running: false }, state('p1', 6))).toBe('ignore');
+  });
+
+  it('delivers the hang-up to the call on screen, and never opens a call that already ended', () => {
+    const showing = { callId: 'p1', running: true, phone: true, risk: state('p1', 5) };
+    expect(pushedStateEffect(showing, state('p1', 5, true))).toBe('update'); // follow() then closes it
+    expect(pushedStateEffect(idle, state('p2', 9, true))).toBe('ignore');
   });
 });

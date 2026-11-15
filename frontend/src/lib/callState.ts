@@ -1,5 +1,5 @@
 // Maps backend risk state to the elder screen to show (Figma E1a–E5).
-import type { RiskState, Verification } from '../../../contracts/index.js';
+import type { PushMessage, RiskState, Verification } from '../../../contracts/index.js';
 
 export type ElderView = 'listening' | 'green' | 'yellow' | 'verifying' | 'red';
 
@@ -18,21 +18,21 @@ export function elderView(risk: RiskState | null, verification: Verification): E
 export const PHONE_CALL_QUIET_MS = 60_000;
 
 /**
- * What a RiskState pushed for a phone call does to the call on screen:
+ * What a message pushed for a phone call does to the call on screen:
  * - 'new': start showing it (nothing running, or the phone call on screen has gone quiet)
- * - 'update': it's the call on screen, with a newer or the same RiskState (agent progress
- *   arrives with the RiskState unchanged)
- * - 'ignore': a speakerphone/demo call is running, another phone call is still active,
- *   the elder already ended this call, or it's an older RiskState
+ * - 'update': it's the call on screen, with a newer or the same RiskState (agent progress and
+ *   the hang-up arrive with the RiskState unchanged); `ended` then closes it
+ * - 'ignore': a call that already ended and isn't on screen, a running speakerphone/demo call,
+ *   another phone call that's still active, a call the elder already closed, or an older RiskState
  */
 export function pushedStateEffect(
   current: { callId: string; running: boolean; phone: boolean; risk: RiskState | null },
-  next: RiskState,
+  next: PushMessage,
 ): 'new' | 'update' | 'ignore' {
   if (current.callId !== next.callId) {
+    if (next.ended || (current.running && !current.phone)) return 'ignore';
     if (!current.running) return 'new';
-    if (!current.phone) return 'ignore';
-    // ponytail: there's no end-of-call push yet, so "quiet for 60 s" stands in for "ended"; add one when Track A can send it.
+    // The other call's hang-up push frees the screen; "quiet for 60 s" covers one that never arrives.
     const quiet = !current.risk || next.updatedAt - current.risk.updatedAt > PHONE_CALL_QUIET_MS;
     return quiet ? 'new' : 'ignore';
   }
