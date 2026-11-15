@@ -69,8 +69,8 @@ export function recentWindow(utterances: Utterance[]): Utterance[] {
  * - the level only drops after two calm results in a row.
  * - the family is alerted once, when the call is red and the elder starts
  *   falling for it (engaging or complying).
- * - the agent takes over once, when the call is red and the elder is clearly
- *   complying.
+ * - the agent joins once, as soon as the call is red, whether or not the elder
+ *   is going along with it: its job is to find out if the caller is real.
  */
 export function decide(v: ModelVerdict, req: DecideInput): Decision {
   let tactics = [...v.tactics];
@@ -104,7 +104,7 @@ export function decide(v: ModelVerdict, req: DecideInput): Decision {
 
   const falling = elderRank[v.elderState] >= elderRank.engaging;
   const shouldAlert = level === 'red' && falling && !req.familyAlerted;
-  const takeover = level === 'red' && v.elderState === 'complying' && req.agentStatus === 'idle';
+  const takeover = level === 'red' && req.agentStatus === 'idle';
 
   let action: Action = 'none';
   if (takeover) action = 'agent_takeover';

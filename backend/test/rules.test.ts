@@ -59,18 +59,26 @@ describe('decide: family alert and agent takeover', () => {
     const d = decide(v({ ...scam, elderState: 'none' }), fresh);
     expect(d.level).toBe('red');
     expect(d.shouldAlert).toBe(false);
-    expect(d.action).toBe('none');
+    expect(d.action).toBe('agent_takeover'); // the agent joins; the family isn't alerted yet
   });
 
   it('alerts once when the elder starts engaging on a red call', () => {
     const d = decide(v({ ...scam, elderState: 'engaging' }), fresh);
     expect(d.shouldAlert).toBe(true);
-    expect(d.action).toBe('alert_family');
+    expect(d.action).toBe('agent_takeover'); // the agent joins in the same step
+    expect(decide(v({ ...scam, elderState: 'engaging' }), { ...fresh, agentStatus: 'active' }).action).toBe('alert_family');
     expect(decide(v({ ...scam, elderState: 'engaging' }), { ...fresh, prevLevel: 'red', familyAlerted: true }).shouldAlert).toBe(false);
   });
 
   it('engaging on a yellow call does not alert', () => {
     expect(decide(v({ risk: 50, tactics: ['urgency'], elderState: 'engaging' }), fresh).shouldAlert).toBe(false);
+  });
+
+  it('the agent joins any red call, even when the elder is not going along (no family alert then)', () => {
+    const d = decide(v({ ...scam, elderState: 'none' }), fresh);
+    expect(d.action).toBe('agent_takeover');
+    expect(d.shouldAlert).toBe(false);
+    expect(decide(v({ risk: 50, tactics: ['urgency'], elderState: 'complying' }), fresh).action).not.toBe('agent_takeover');
   });
 
   it('takes over when the elder is complying on a red call, and alerts in the same step', () => {
