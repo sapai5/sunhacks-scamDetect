@@ -168,7 +168,7 @@ export interface Contact {
 /**
  * One elder's settings (Elders table). Settings API: GET ?elderId= returns them without
  * verificationAnswer; PUT {elderId, ...fields} updates the fields given.
- * WebSocket push: connect with ?elderId=; each message is a RiskState (JSON) for one of the elder's calls.
+ * WebSocket push: connect with ?elderId=; each message is a PushMessage (JSON) for one of the elder's calls.
  */
 export interface ElderSettings {
   elderId: string;
@@ -181,4 +181,18 @@ export interface ElderSettings {
   family: Contact[];
   /** E.164 numbers whose calls skip screening (Connect contacts check). */
   trustedContacts: string[];
+}
+
+/** Push socket -> app: a phone call's latest RiskState plus the phone agent's progress. */
+export interface PushMessage extends RiskState {
+  agentStatus: AgentStatus;
+  agentSummary?: string;
+  /** The phone agent's latest line. */
+  agentSay?: string;
+}
+
+/** App -> push socket: the elder tapped "Let me talk" while the phone agent had the call. */
+export interface PushStopAgent {
+  action: 'stopAgent';
+  callId: string;
 }

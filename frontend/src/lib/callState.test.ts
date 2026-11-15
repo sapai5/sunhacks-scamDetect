@@ -35,6 +35,7 @@ describe('pushedStateEffect', () => {
   it('updates the call on screen, but not with stale results or after the elder ended it', () => {
     const showing = { callId: 'p1', running: true, phone: true, risk: state('p1', 5) };
     expect(pushedStateEffect(showing, state('p1', 6))).toBe('update');
+    expect(pushedStateEffect(showing, state('p1', 5))).toBe('update'); // same RiskState, new agent progress
     expect(pushedStateEffect(showing, state('p1', 4))).toBe('ignore');
     expect(pushedStateEffect({ ...showing, running: false }, state('p1', 6))).toBe('ignore');
   });

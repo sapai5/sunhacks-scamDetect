@@ -1,9 +1,9 @@
 // Call state for the live flow. All call state lives in the browser and goes along
 // with every analyze request (the Lambdas are stateless).
 import { useCallback, useMemo, useRef, useState } from 'react';
-import type { AgentStatus, RiskState, Utterance, Verification } from '../../../contracts/index.js';
+import type { AgentStatus, PushMessage, RiskState, Utterance, Verification } from '../../../contracts/index.js';
 import { TEST_SCRIPTS } from '../../../backend/scripts/test-scripts.js';
-import { agentTurn, analyze } from './api';
+import { agentTurn, analyze, stopPhoneAgent } from './api';
 import { elderView, pushedStateEffect } from './callState';
 import type { CallSnapshot, RiskPoint } from './snapshot';
 import { speak, stopSpeaking, unlockSpeech } from './speech';
@@ -250,7 +250,7 @@ export function useCall() {
    * call in progress takes priority, and a call the elder already ended stays ended.
    */
   const follow = useCallback(
-    (next: RiskState) => {
+    (next: PushMessage) => {
       const r = s.current;
       const effect = pushedStateEffect(r, next);
       if (effect === 'ignore') return;
@@ -258,19 +258,34 @@ export function useCall() {
         begin(next.callId, true);
         setStatus('Phone call, checked by the server');
       }
-      const prev = r.risk;
-      // familyAlerted is only true on the result that sent the alert; keep it sticky.
-      r.familyAlerted ||= next.familyAlerted;
-      r.risk = { ...next, familyAlerted: r.familyAlerted };
-      setRisk(r.risk);
-      if (next.verificationQuestion) setQuestion(next.verificationQuestion);
-      setHistory((h) => [
-        ...h,
-        { seq: h.length, risk: next.risk, level: next.level, newTactics: next.tactics.filter((t) => !prev?.tactics.includes(t)) },
-      ]);
-      // ponytail: no agent takeover on the phone path yet (needs Track A's A4 answer); the red screen shows instead.
+      if (!r.risk || next.updatedAt > r.risk.updatedAt) {
+        const prev = r.risk;
+        // familyAlerted is only true on the result that sent the alert; keep it sticky.
+        r.familyAlerted ||= next.familyAlerted;
+        r.risk = { ...next, familyAlerted: r.familyAlerted };
+        setRisk(r.risk);
+        if (next.verificationQuestion) setQuestion(next.verificationQuestion);
+        setHistory((h) => [
+          ...h,
+          { seq: h.length, risk: next.risk, level: next.level, newTactics: next.tactics.filter((t) => !prev?.tactics.includes(t)) },
+        ]);
+      }
+      // The server's phone agent speaks into the call itself; the app shows its lines and status (E7).
+      const say = next.agentSay;
+      if (say && say !== r.utterances.at(-1)?.text) {
+        pushUtterance('agent', say);
+        setAgentSpeaking(true);
+        setTimeout(() => setAgentSpeaking(false), Math.min(8_000, 500 + say.length * 60)); // rough speaking time
+      }
+      // Never undo the elder's "Let me talk" or a finished takeover with a late message.
+      if (next.agentStatus !== r.agentStatus && (r.agentStatus === 'idle' || r.agentStatus === 'active')) {
+        if (r.agentStatus === 'active') finishAgent(next.agentStatus, next.agentSummary ?? '');
+        else setAgent(next.agentStatus);
+      }
     },
-    [begin],
+    // pushUtterance only reads refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [begin, finishAgent, setAgent],
   );
 
   const start = useCallback(
@@ -325,7 +340,11 @@ export function useCall() {
   );
 
   /** Elder taps "Let me talk": the agent stops and won't take over again this call. */
-  const takeBack = useCallback(() => finishAgent('stopped', ''), [finishAgent]);
+  const takeBack = useCallback(() => {
+    // Phone call: the agent runs on the server, so tell it to stop.
+    if (s.current.phone && !stopPhoneAgent(s.current.callId)) setStatus("Couldn't reach the server; the helper may keep talking.");
+    finishAgent('stopped', '');
+  }, [finishAgent]);
 
   /** Subscribe to mic audio (~100 ms chunks, mic mode only). Returns an unsubscribe function. */
   const subscribeAudio = useCallback((l: (chunk: Float32Array, sampleRate: number) => void) => {
