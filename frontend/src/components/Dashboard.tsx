@@ -153,7 +153,7 @@ export function EvidenceChart({ history }: { history: RiskPoint[] }) {
         {note && (
           <text
             x={pts[noteIdx][0] + (pts[noteIdx][0] < X0 + 280 ? 12 : -12)}
-            y={pts[noteIdx][1] + 4}
+            y={pts[noteIdx][1] < TOP + 24 ? pts[noteIdx][1] + 20 : pts[noteIdx][1] + 4}
             textAnchor={pts[noteIdx][0] < X0 + 280 ? 'start' : 'end'}
             className="chart-note"
             fill="var(--color-danger)"

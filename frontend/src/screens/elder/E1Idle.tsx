@@ -1,5 +1,6 @@
 // E1 Idle protected. Figma node 15:3.
 // The Figma frame has no buttons; "Start listening" and the demo scripts are added so the demo can start a call.
+import { InstallHint } from '../../components/InstallHint';
 import { BigButton, RiskLight } from '../../components/Risk';
 import type { StartMode } from '../../lib/useCall';
 
@@ -14,6 +15,7 @@ export interface E1Props {
 export default function E1Idle({ familyCount = 3, scripts = [], micAvailable, onStart }: E1Props) {
   return (
     <div className="screen-center">
+      <InstallHint />
       <RiskLight state="green" size="badge" label="Protected" />
       <h1 className="screen-title">You're protected</h1>
       <p className="screen-lede">ScamDetermine listens to your calls and warns you if one turns into a scam.</p>

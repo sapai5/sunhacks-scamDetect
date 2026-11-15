@@ -8,6 +8,8 @@ export interface TranscriberEvents {
   onPartial(text: string): void;
   onFinal(text: string, speaker: string): void;
   onError(err: unknown): void;
+  /** Every ~100 ms of mic audio at 16 kHz (for hang-up / speaker detection, lib/presence.ts). */
+  onAudio?(chunk: Float32Array, sampleRate: number): void;
 }
 
 export interface Transcriber {
@@ -28,6 +30,9 @@ export async function startTranscriber(events: TranscriberEvents): Promise<Trans
   if (!credsRes.ok) throw new Error(`credentials: HTTP ${credsRes.status}`);
   const creds = await credsRes.json();
 
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('the mic needs HTTPS (or localhost). Open the Vercel URL, or use a demo call');
+  }
   const stream = await navigator.mediaDevices.getUserMedia({
     // Speakerphone audio: keep echo cancellation off so the caller's voice isn't removed.
     audio: { channelCount: 1, echoCancellation: false, noiseSuppression: true, autoGainControl: true },
@@ -56,8 +61,9 @@ export async function startTranscriber(events: TranscriberEvents): Promise<Trans
       pending = [];
       pendingLen = 0;
       const pcm = downsample(merged, ctx.sampleRate, SAMPLE_RATE);
-      if (muted) pcm.fill(0);
-      queue.push(toPcm16(pcm));
+      // The detector always gets real audio; Transcribe gets silence while the agent is talking.
+      events.onAudio?.(pcm, SAMPLE_RATE);
+      queue.push(toPcm16(muted ? new Float32Array(pcm.length) : pcm));
       wake?.();
     }
   };

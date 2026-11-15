@@ -17,6 +17,15 @@ const AGENT_REPLY_DELAY_MS = 1200;
 /** If the caller says nothing for this long after the agent speaks, treat them as gone. */
 const CALLER_SILENCE_MS = 25_000;
 
+/**
+ * 8-char call id. crypto.randomUUID only exists in secure contexts (HTTPS / localhost), and the
+ * demo is often opened on a phone over plain http://<LAN IP>, so fall back to getRandomValues.
+ */
+const shortId = () =>
+  typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID().slice(0, 8)
+    : Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, '0')).join('');
+
 const p95 = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * 0.95))] : null);
 
 export function useCall() {
@@ -51,6 +60,9 @@ export function useCall() {
     inFlight: Promise.resolve(),
     transcriber: null as Transcriber | null,
     running: false,
+    /** Listeners for raw mic audio (hang-up / speaker detection) and finished caller lines. */
+    audioListeners: new Set<(chunk: Float32Array, sampleRate: number) => void>(),
+    lineListeners: new Set<(text: string) => void>(),
   });
 
   const setAgent = useCallback((st: AgentStatus) => {
@@ -170,6 +182,7 @@ export function useCall() {
       if (!r.running) return;
       pushUtterance(speaker, text);
       setPartial('');
+      if (speaker !== 'agent') r.lineListeners.forEach((l) => l(text));
       if (r.agentStatus === 'active') {
         // The caller is answering the agent: reply after they pause.
         clearTimeout(r.silenceTimer);
@@ -201,7 +214,7 @@ export function useCall() {
       r.transcriber?.stop();
       clearTimeout(r.agentTimer);
       clearTimeout(r.silenceTimer);
-      const id = `c-${crypto.randomUUID().slice(0, 8)}`;
+      const id = `c-${shortId()}`;
       Object.assign(r, {
         callId: id,
         utterances: [],
@@ -249,6 +262,7 @@ export function useCall() {
             onPartial: setPartial,
             onFinal: (text, speaker) => addSentence(text, speaker),
             onError: (err) => setStatus(`Transcribe error: ${String(err)}`),
+            onAudio: (chunk, sampleRate) => r.audioListeners.forEach((l) => l(chunk, sampleRate)),
           });
           setStatus('Listening. Put the call on speaker next to this device.');
         }
@@ -275,6 +289,19 @@ export function useCall() {
   /** Elder taps "Let me talk": the agent stops and won't take over again this call. */
   const takeBack = useCallback(() => finishAgent('stopped', ''), [finishAgent]);
 
+  /** Subscribe to mic audio (~100 ms chunks, mic mode only). Returns an unsubscribe function. */
+  const subscribeAudio = useCallback((l: (chunk: Float32Array, sampleRate: number) => void) => {
+    s.current.audioListeners.add(l);
+    return () => void s.current.audioListeners.delete(l);
+  }, []);
+  /** Subscribe to finished caller lines (mic or demo). Returns an unsubscribe function. */
+  const subscribeLines = useCallback((l: (text: string) => void) => {
+    s.current.lineListeners.add(l);
+    return () => void s.current.lineListeners.delete(l);
+  }, []);
+  /** Latest call id and risk, for async code that outlives a render. */
+  const latest = useCallback(() => ({ callId: s.current.callId, risk: s.current.risk }), []);
+
   const view = elderView(risk, verification);
   const snapshot: CallSnapshot = useMemo(
     () => ({
@@ -290,11 +317,12 @@ export function useCall() {
       latencyMs: latencies.at(-1) ?? null,
       p95Ms: p95(latencies),
       agentStatus,
+      events: [],
     }),
     [callId, running, startedAt, risk, view, verification, question, transcript, history, latencies, agentStatus],
   );
 
-  return { ...snapshot, partial, status, agentSpeaking, agentSummary, start, stop, answerVerification, takeBack, snapshot };
+  return { ...snapshot, partial, status, agentSpeaking, agentSummary, start, stop, answerVerification, takeBack, subscribeAudio, subscribeLines, latest, snapshot };
 }
 
 export type CallController = ReturnType<typeof useCall>;

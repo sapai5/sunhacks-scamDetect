@@ -5,3 +5,6 @@ cdk-outputs.json
 web-dist.zip
 .env*.local
 *.log
+.env
+.env.*
+!.env.example

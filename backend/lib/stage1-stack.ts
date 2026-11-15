@@ -134,9 +134,25 @@ export class Stage1Stack extends cdk.Stack {
       familyTopic.grantPublish(fn);
     }
 
+    // --- Events Lambda: call events from the app (hang-up, off/on speaker, caller asking to go
+    // off speaker). Texts the family when an event changes what they should do.
+    const eventsFn = new NodejsFunction(this, 'EventsFn', {
+      ...fnDefaults,
+      entry: path.join(here, '../lambda/events/index.ts'),
+      memorySize: 256,
+      timeout: cdk.Duration.seconds(5),
+      environment: { ELDER_NAME: props.elderName, FAMILY_TOPIC_ARN: familyTopic.topicArn },
+      logGroup: new logs.LogGroup(this, 'EventsLogs', {
+        retention: logs.RetentionDays.ONE_WEEK,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
+    });
+    familyTopic.grantPublish(eventsFn);
+
     const credentialsUrl = credentialsFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
     const analyzeUrl = analyzeFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
     const agentUrl = agentFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
+    const eventsUrl = eventsFn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE, cors });
 
     // --- Amplify Hosting for the PWA (manual zip deploy, no Git connection).
     const webApp = new amplify.CfnApp(this, 'WebApp', {
@@ -161,6 +177,7 @@ export class Stage1Stack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CredentialsUrl', { value: credentialsUrl.url });
     new cdk.CfnOutput(this, 'AnalyzeUrl', { value: analyzeUrl.url });
     new cdk.CfnOutput(this, 'AgentUrl', { value: agentUrl.url });
+    new cdk.CfnOutput(this, 'EventsUrl', { value: eventsUrl.url });
     new cdk.CfnOutput(this, 'FamilyTopicArn', { value: familyTopic.topicArn });
     new cdk.CfnOutput(this, 'AmplifyAppId', { value: webApp.attrAppId });
     new cdk.CfnOutput(this, 'WebUrl', { value: `https://${branch.branchName}.${webApp.attrDefaultDomain}` });

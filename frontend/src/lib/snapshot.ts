@@ -1,7 +1,7 @@
 // A serialisable picture of the call, shared between tabs with BroadcastChannel so the
 // desktop dashboard (one tab / laptop window) mirrors the elder phone view (another tab).
-import { useEffect, useState } from 'react';
-import type { AgentStatus, RiskState, Tactic, Utterance, Verification } from '../../../contracts/index.js';
+import { useEffect, useRef, useState } from 'react';
+import type { AgentStatus, CallEvent, RiskState, Tactic, Utterance, Verification } from '../../../contracts/index.js';
 import type { ElderView } from './callState';
 
 /** One analyze result, tied to the utterance that triggered it. */
@@ -30,7 +30,11 @@ export interface CallSnapshot {
   p95Ms: number | null;
   /** Where the takeover agent is ('idle' = never took over). */
   agentStatus: AgentStatus;
+  /** Hang-up / speaker events, oldest first. `notified` = the family was alerted about it. */
+  events: LoggedEvent[];
 }
+
+export type LoggedEvent = CallEvent & { notified?: boolean };
 
 export const EMPTY_SNAPSHOT: CallSnapshot = {
   callId: '',
@@ -45,6 +49,7 @@ export const EMPTY_SNAPSHOT: CallSnapshot = {
   latencyMs: null,
   p95Ms: null,
   agentStatus: 'idle',
+  events: [],
 };
 
 const CHANNEL = 'scamdetermine-call';
@@ -59,11 +64,24 @@ function channel(): BroadcastChannel | null {
 
 /** Publish this tab's call so other tabs can mirror it. */
 export function usePublishSnapshot(s: CallSnapshot) {
-  const [ch] = useState(channel);
+  // Open the channel inside an effect (not useState): React StrictMode runs effects twice in dev,
+  // and a channel created once but closed by the first cleanup would throw on every post.
+  const ch = useRef<BroadcastChannel | null>(null);
   useEffect(() => {
-    if (s.callId) ch?.postMessage(s);
-  }, [ch, s]);
-  useEffect(() => () => ch?.close(), [ch]);
+    ch.current = channel();
+    return () => {
+      ch.current?.close();
+      ch.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    if (!s.callId) return;
+    try {
+      ch.current?.postMessage(s);
+    } catch {
+      /* mirroring is best effort; never break the call over it */
+    }
+  }, [s]);
 }
 
 /** The most recent call seen in any tab (this one included). */
