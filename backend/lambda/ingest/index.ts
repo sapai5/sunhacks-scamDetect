@@ -9,6 +9,7 @@
 //   front end sends each agent line here         (speaker 'agent': shown in the app)
 //   app's "Let me talk" sets active -> stopped   (push Lambda; the front end checks before speaking)
 //   front end sets active -> final status        (verified / scam_confirmed / caller_left)
+//   front end sets ended = true when the call hangs up (the app closes it)
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { GetCommand, UpdateCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
 import type { AgentStatus, AnalyzeRequest, IngestRequest, RiskState, Utterance, Verification } from '../../../contracts/index.js';

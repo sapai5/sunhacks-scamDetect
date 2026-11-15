@@ -96,7 +96,13 @@ async function updateCall(callId: string, expression: string, condition: string,
 function message(call: Record<string, any> | undefined): PushMessage | undefined {
   if (!call?.state) return undefined;
   const lastAgentLine = [...(call.utterances ?? [])].reverse().find((u) => u.speaker === 'agent');
-  return { ...call.state, agentStatus: call.agentStatus ?? 'idle', agentSummary: call.agentSummary, agentSay: lastAgentLine?.text };
+  return {
+    ...call.state,
+    agentStatus: call.agentStatus ?? 'idle',
+    agentSummary: call.agentSummary,
+    agentSay: lastAgentLine?.text,
+    ended: call.ended === true || undefined,
+  };
 }
 
 async function pushChanges(event: DynamoDBStreamEvent): Promise<void> {

@@ -282,10 +282,12 @@ export function useCall() {
         if (r.agentStatus === 'active') finishAgent(next.agentStatus, next.agentSummary ?? '');
         else setAgent(next.agentStatus);
       }
+      // Hung up (either side): close the call; the live screen moves on to the summary.
+      if (next.ended) stop();
     },
     // pushUtterance only reads refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [begin, finishAgent, setAgent],
+    [begin, finishAgent, setAgent, stop],
   );
 
   const start = useCallback(

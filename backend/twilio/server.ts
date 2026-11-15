@@ -249,6 +249,26 @@ function endCall(callSid: string | undefined, why: string) {
   call.tracks.caller?.stop();
   call.tracks.elder?.stop();
   log(call.callSid, 'call ended', { why, sentences: call.utterances.length });
+  // Tell the app (Calls -> push) once the sentences still queued are scored, so it shows the final result.
+  call.ingestChain = call.ingestChain.then(() => markEnded(call));
+}
+
+/** Calls.ended = true: the app closes the call and shows the summary. If the agent still had it, the caller left. */
+async function markEnded(call: Call) {
+  if (call.agentStatus === 'active') await setAgentStatus(call, 'active', 'caller_left', 'The call ended while the agent had it.');
+  try {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: cfg.callsTable,
+        Key: { callId: call.callSid },
+        UpdateExpression: 'SET ended = :yes',
+        ConditionExpression: 'attribute_exists(callId)', // no Calls item if nothing was said: nothing to tell the app
+        ExpressionAttributeValues: { ':yes': true },
+      }),
+    );
+  } catch (err) {
+    if ((err as Error).name !== 'ConditionalCheckFailedException') console.error('marking the call ended failed', err);
+  }
 }
 
 // --- Sentences -> IngestFn ---------------------------------------------------------------

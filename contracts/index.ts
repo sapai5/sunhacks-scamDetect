@@ -197,6 +197,8 @@ export interface PushMessage extends RiskState {
   agentSummary?: string;
   /** The phone agent's latest line. */
   agentSay?: string;
+  /** The phone call is over (hung up on either side): the app closes it and shows the summary. */
+  ended?: boolean;
 }
 
 /** App -> push socket: the elder tapped "Let me talk" while the phone agent had the call. */

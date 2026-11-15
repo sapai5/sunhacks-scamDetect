@@ -8,8 +8,11 @@ caller ──> Twilio number ──POST /voice──> this server
         → each sentence → IngestFn (Track B) → RiskState in Calls → pushed to the app
 agent_takeover → the caller's call is redirected to the agent, which drops the elder's leg;
                  each Agent Lambda line is <Say> (Polly voice), then the agent waits for the reply
+               → each agent line goes to IngestFn as speaker 'agent' (the app shows it)
+"Let me talk"  → the app sets Calls.agentStatus = stopped → the agent goes quiet, the elder's phone rings again
 verified       → "Here she is", then the elder's phone rings again
 scam confirmed → goodbye, hang up
+call ends      → Calls.ended = true (after queued sentences are scored) → the app closes the call, shows the summary
 ```
 
 Built to work on a **trial account**: no conferences, no inline TwiML, no `method` parameters,
