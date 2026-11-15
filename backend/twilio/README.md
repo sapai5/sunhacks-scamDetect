@@ -2,40 +2,46 @@
 
 ```
 caller ──> Twilio number ──POST /voice──> this server
-   trusted caller  → rings the elder directly, nothing is streamed
-   unknown caller  → both audio tracks stream to /media, caller + elder join one conference
+   trusted caller  → forwarded to the elder (<Dial>), nothing is streamed
+   unknown caller  → both audio tracks stream to /media, then the call is forwarded to the elder
 /media  → mu-law → PCM → Amazon Transcribe (caller track, elder track)
         → each sentence → IngestFn (Track B) → RiskState in Calls → pushed to the app
-agent_takeover → Calls.agentStatus = active (scoring pauses, the app shows the takeover screen)
-               → Agent Lambda → line spoken into the conference (Twilio <Say>, Polly voice)
-               → the line goes to IngestFn as speaker 'agent' (the app shows it)
-"Let me talk"  → the app sets Calls.agentStatus = stopped → the bridge checks before each line and goes quiet
-scam confirmed → goodbye, then the call is ended for everyone
+agent_takeover → the caller's call is redirected to the agent, which drops the elder's leg;
+                 each Agent Lambda line is <Say> (Polly voice), then the agent waits for the reply
+verified       → "Here she is", then the elder's phone rings again
+scam confirmed → goodbye, hang up
 ```
+
+Built to work on a **trial account**: no conferences, no inline TwiML, no `method` parameters,
+and calls to the elder use the trial's assigned caller ID (`TWILIO_DIAL_FROM`). Our own TwiML URLs
+(`/turn/…`, `/idle/…`) are authorized by a random per-call token in the path. `/voice` and
+`/status` are checked against Twilio's signature.
 
 The server runs on a laptop and is reachable through a tunnel. Detection, alerts and the agent
 are the same deployed Lambdas the app uses, so switching to Amazon Connect later changes only
 this front end (the contract is `IngestRequest`).
 
-## Setup (about 20 min)
+Test lines for two people: `docs/phone-test-script.md`.
 
-1. **Twilio trial:** sign up at twilio.com, get the free number. Under
-   *Phone Numbers → Verified Caller IDs*, verify the phone that will call in (a teammate) and the
-   elder's phone (your iPhone). Trial accounts only connect verified numbers.
-2. **Tunnel:** `winget install Cloudflare.cloudflared`, then
+## Setup
+
+1. **Twilio trial:** sign up at twilio.com. Under *Phone Numbers → Manage → Verified Caller IDs*,
+   verify the elder's phone and the caller's phone (trial accounts only connect verified numbers).
+   Verifying has to happen in the console; the API can't do it on trial accounts.
+2. **Number:** buy (free on trial) a voice number. Set its *A call comes in* webhook to
+   `https://<tunnel>/voice` (POST) and *Call status changes* to `https://<tunnel>/status`.
+3. **Tunnel:** `winget install Cloudflare.cloudflared`, then
    `cloudflared tunnel --url http://localhost:8080`. Copy the `https://….trycloudflare.com` URL.
-3. **Config:** copy `backend/twilio/.env.example` to `backend/twilio/.env` (gitignored) and fill in
-   the account SID, auth token, Twilio number and tunnel URL. The elder's phone and trusted contacts
+4. **Config:** copy `backend/twilio/.env.example` to `backend/twilio/.env` (gitignored) and fill in
+   the account SID, auth token, number, the trial's assigned number (`TWILIO_DIAL_FROM`, shown on
+   the console's *Try out Voice* page) and the tunnel URL. The elder's phone and trusted contacts
    come from `backend/local.config.json`, also gitignored.
-4. **Run:** `npm run twilio -w backend`. It prints the webhook URLs.
-5. **Point the number at it:** Twilio console → your number → *Voice configuration* →
-   *A call comes in*: Webhook, `https://<tunnel>/voice`, HTTP POST. *Call status changes*:
-   `https://<tunnel>/status`.
-6. **Call it** from the verified phone. Trial accounts play a message and ask the caller to press a
-   key; the elder's phone gets the same when it rings.
+5. **Run:** `npm run twilio -w backend`.
+6. **Call** the number from the verified caller phone. Trial accounts play a message and ask both
+   sides to press a key.
 
-The quick tunnel URL changes every time cloudflared restarts: update `PUBLIC_URL` and the Twilio
-webhook when it does. Webhooks are checked against Twilio's signature, so only Twilio can call them.
+Quick tunnels can expire without warning ("application error" on the call, nothing in the bridge
+log). Restart cloudflared, update `PUBLIC_URL`, restart the bridge, and update both webhooks.
 
 ## Test without Twilio
 
@@ -53,11 +59,11 @@ when you want a sim on the demo phone. On PowerShell, set the variables with `$e
 ## Trial limits
 
 75 voice minutes, 30 days, 10-minute calls, verified numbers only, a "press any key" message.
-Upgrading removes them (paid to Twilio; AWS credits don't cover it).
+Upgrading removes them (paid to Twilio; AWS credits don't cover it) and would allow a conference,
+so the elder could stay on the line and hear the agent.
 
-## Not verified on a real Twilio call yet
+## Status
 
-- That the conference announcement plays to both sides as expected, and how long Twilio takes to
-  start it (the mic is muted on the elder track for an estimate of the speaking time).
-- The trial "press any key" prompt on the elder's leg before the conference.
-- "Let me talk" stops the agent before its next line; a line it's already saying plays to the end.
+- Real calls: forwarding, both tracks, scoring, red and the family alert work (tested).
+- Not verified on a real call yet: the takeover redirect, whether the media stream keeps running
+  after it, and the hand-back re-dial.
