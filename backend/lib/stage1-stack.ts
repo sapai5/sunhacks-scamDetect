@@ -142,7 +142,14 @@ export class Stage1Stack extends cdk.Stack {
     const webApp = new amplify.CfnApp(this, 'WebApp', {
       name: 'scam-shield',
       platform: 'WEB',
-      customRules: [{ source: '/<*>', target: '/index.html', status: '404-200' }],
+      // Single-page app: any path that isn't a static file serves index.html (Amplify docs' SPA rule).
+      customRules: [
+        {
+          source: '</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest)$)([^.]+$)/>',
+          target: '/index.html',
+          status: '200',
+        },
+      ],
     });
     const branch = new amplify.CfnBranch(this, 'WebMain', {
       appId: webApp.attrAppId,
