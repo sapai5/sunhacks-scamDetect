@@ -1,0 +1,37 @@
+/* E1 on the phone path: speakerphone listening and demo calls tucked under "Practice". */
+.practice {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  text-align: left;
+}
+.practice__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  padding: 0 18px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  list-style: none;
+}
+.practice__summary::-webkit-details-marker { display: none; }
+.practice__summary::after {
+  content: '›';
+  font-size: 26px;
+  color: var(--color-text-muted);
+  transition: transform 200ms ease;
+}
+.practice[open] .practice__summary::after { transform: rotate(90deg); }
+.practice__summary:focus-visible { outline: 3px solid var(--color-verify); outline-offset: 2px; border-radius: var(--radius-card); }
+.practice > .screen-actions { padding: 0 16px 16px; }
+.practice .demo-scripts { margin-top: 8px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .practice[open] > .screen-actions { animation: rise-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .practice__summary::after { transition: none; }
+}
