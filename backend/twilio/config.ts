@@ -47,6 +47,11 @@ export interface BridgeConfig {
    * account can't use it (a new account answers "needs a subscription" until AWS activates it).
    */
   transcribeProfile?: string;
+  /**
+   * TRANSCRIBE_ROLE_ARN: a role (usually in another account) assumed only for Amazon Transcribe.
+   * The Fargate version of TRANSCRIBE_AWS_PROFILE, since a container has no ~/.aws profiles.
+   */
+  transcribeRoleArn?: string;
   /** The web app (Amplify), for the links in texts to the elder. */
   webUrl: string;
 }
@@ -57,10 +62,18 @@ async function outputs(cf: CloudFormationClient, stack: string): Promise<Record<
 }
 
 export async function loadConfig(): Promise<BridgeConfig> {
-  const local = JSON.parse(readFileSync(new URL('../local.config.json', import.meta.url), 'utf8')) as {
-    elderPhone: string;
+  // Phone numbers: local.config.json on a laptop, or ELDER_PHONE / TRUSTED_CONTACTS env vars in the
+  // container (Fargate), where that gitignored file doesn't exist.
+  const localPath = new URL('../local.config.json', import.meta.url);
+  const local = (existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}) as {
+    elderPhone?: string;
     trustedContacts?: string[];
   };
+  const elderPhone = process.env.ELDER_PHONE || local.elderPhone;
+  if (!elderPhone) throw new Error('Missing the elder phone: set elderPhone in backend/local.config.json or ELDER_PHONE.');
+  const trustedContacts = process.env.TRUSTED_CONTACTS
+    ? process.env.TRUSTED_CONTACTS.split(',').map((n) => n.trim()).filter(Boolean)
+    : (local.trustedContacts ?? []);
   const ctx = JSON.parse(readFileSync(new URL('../cdk.json', import.meta.url), 'utf8')).context as Record<string, string>;
   const region = process.env.AWS_REGION ?? 'us-east-1';
   const cf = new CloudFormationClient({ region });
@@ -76,14 +89,15 @@ export async function loadConfig(): Promise<BridgeConfig> {
     // Dry runs (the simulator) use "sim", so they don't show up live in the app (no app listens to "sim").
     // Real calls use e-01, the demo phone. Override with ELDER_ID.
     elderId: process.env.ELDER_ID ?? (process.env.TWILIO_DRY_RUN === '1' ? 'sim' : 'e-01'),
-    elderPhone: local.elderPhone,
-    trustedContacts: local.trustedContacts ?? [],
+    elderPhone,
+    trustedContacts,
     ingestFnName: data.IngestFnName,
     callsTable: data.CallsTableName,
     eldersTable: data.EldersTableName,
     agentUrl: stage1.AgentUrl,
     agentVoice: process.env.AGENT_VOICE === 'say' ? 'say' : 'sonic',
     transcribeProfile: process.env.TRANSCRIBE_AWS_PROFILE || undefined,
+    transcribeRoleArn: process.env.TRANSCRIBE_ROLE_ARN || undefined,
     localBackend: process.env.LOCAL_BACKEND === '1',
     familyTopicArn: stage1.FamilyTopicArn,
     persona: {

@@ -1,0 +1,15 @@
+# Keep secrets, local config and build output out of the Docker build context.
+**/node_modules
+**/dist
+**/cdk.out
+**/.env
+**/.env.*
+!**/.env.example
+backend/local.config.json
+backend/cdk-outputs*.json
+backend/telephony-outputs.json
+web-dist.zip
+.git
+docs
+frontend/src
+frontend/public

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import * as cdk from 'aws-cdk-lib';
+import { BridgeStack } from '../lib/bridge-stack.js';
 import { DataStack } from '../lib/data-stack.js';
 import { Stage1Stack } from '../lib/stage1-stack.js';
 import { TelephonyStack } from '../lib/telephony-stack.js';
@@ -40,6 +41,14 @@ new DataStack(app, 'ScamShieldData', {
     family: [],
     trustedContacts: ctxList('trustedContacts'),
   },
+});
+
+// The Twilio bridge on Fargate (replaces the laptop + tunnel). Deploy with
+// `npx cdk deploy ScamShieldBridge` after creating its secret (scripts/bridge-secret.ts).
+// Optional: -c transcribeRoleArn=arn:aws:iam::<other account>:role/... to run Transcribe elsewhere.
+new BridgeStack(app, 'ScamShieldBridge', {
+  env,
+  transcribeRoleArn: ctx('transcribeRoleArn') || undefined,
 });
 
 // Stage 2 (Track A). Real phone numbers live in backend/local.config.json, which is gitignored
