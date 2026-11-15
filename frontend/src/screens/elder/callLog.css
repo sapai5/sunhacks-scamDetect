@@ -1,0 +1,91 @@
+/* E8 Past calls / E9 call detail. Phone layout, same tokens as the other elder screens. */
+.screen-log {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 48px;
+  padding-bottom: 32px;
+}
+
+.call-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.call-log__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px; /* big tap target for older hands */
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.call-log__row:active { background: var(--color-surface); }
+.call-log__row:focus-visible { outline: 3px solid var(--color-verify); outline-offset: 2px; }
+.call-log__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.call-log__title { font-size: 18px; font-weight: 600; }
+.call-log__live { color: var(--color-danger); font-weight: 600; }
+.call-log__meta { font-size: 15px; color: var(--color-text-muted); }
+.call-log__chevron { font-size: 28px; color: var(--color-text-muted); line-height: 1; }
+
+.call-detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Entry points on E1 / E6. */
+.call-log-link {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-verify);
+  text-decoration: none;
+  padding: 12px 8px;
+}
+.call-log-link:focus-visible { outline: 3px solid var(--color-verify); outline-offset: 2px; border-radius: 8px; }
+
+/* E10 Settings. */
+.screen-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 48px;
+}
+.settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.settings-row:active { background: var(--color-surface); }
+.settings-row:focus-visible { outline: 3px solid var(--color-verify); outline-offset: 2px; }
+.settings-row__text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.settings-row__title { font-size: 19px; font-weight: 600; }
+.settings-row__meta { font-size: 15px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

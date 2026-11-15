@@ -1,0 +1,97 @@
+/*
+ * Motion, plain CSS (no animation library). Calm and short so it helps older eyes follow what
+ * changed instead of distracting. Everything sits behind prefers-reduced-motion: phones set to
+ * "Reduce motion" get the instant, static UI.
+ *
+ * Screens remount when the route or the call level changes (each level is its own component),
+ * so entrance animations double as "something changed" cues.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* ---- Screen entrances --------------------------------------------------------------------- */
+  .screen-center > *,
+  .screen-log > *,
+  .screen-form > *,
+  .screen-family > *,
+  .screen-settings > * {
+    animation: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  /* Stagger the first few blocks so the eye reads top to bottom. */
+  :is(.screen-center, .screen-log, .screen-form, .screen-family, .screen-settings) > :nth-child(2) { animation-delay: 50ms; }
+  :is(.screen-center, .screen-log, .screen-form, .screen-family, .screen-settings) > :nth-child(3) { animation-delay: 100ms; }
+  :is(.screen-center, .screen-log, .screen-form, .screen-family, .screen-settings) > :nth-child(4) { animation-delay: 150ms; }
+  :is(.screen-center, .screen-log, .screen-form, .screen-family, .screen-settings) > :nth-child(n + 5) { animation-delay: 200ms; }
+
+  /* In-call screens: no slide (the layout must not jump during a call), just a quick fade,
+     with the light "popping" to its new colour and the panel rising in. */
+  .screen-call { animation: fade-in 220ms ease-out both; }
+  .screen-call .risk-light--hero .risk-light__core { animation: core-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .screen-call .risk-light--hero[data-state='verifying'] .risk-light__core {
+    animation: core-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both, core-breathe 2.2s ease-in-out 520ms infinite;
+  }
+  .screen-call .status-panel { animation: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms both; }
+  /* Red: one short nudge of the warning panel, on top of the halo pulse and the vibration. */
+  .screen-call .status-panel[data-state='red'] {
+    animation: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms both, nudge 420ms ease-in-out 480ms;
+  }
+  .screen-call .big-button,
+  .screen-call .speaking-pill,
+  .screen-call .text-button { animation: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) 160ms both; }
+
+  /* Speaking pill dot breathes while the agent talks. */
+  .speaking-pill__dot { animation: dot-breathe 1.4s ease-in-out infinite; }
+
+  /* ---- Buttons and rows: press feedback ----------------------------------------------------- */
+  .big-button,
+  .call-log__row,
+  .settings-row,
+  .tab-bar__tab {
+    transition: transform 140ms ease, background-color 200ms ease, box-shadow 200ms ease, color 200ms ease;
+  }
+  .big-button:active:not(:disabled) { transform: scale(0.97); }
+  .call-log__row:active,
+  .settings-row:active { transform: scale(0.98); }
+  .tab-bar__tab:active { transform: scale(0.94); }
+
+  /* ---- Lists ------------------------------------------------------------------------------- */
+  .call-log > li { animation: rise-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .call-log > li:nth-child(2) { animation-delay: 40ms; }
+  .call-log > li:nth-child(3) { animation-delay: 80ms; }
+  .call-log > li:nth-child(4) { animation-delay: 120ms; }
+  .call-log > li:nth-child(n + 5) { animation-delay: 160ms; }
+
+  /* ---- Tab bar ----------------------------------------------------------------------------- */
+  .tab-bar { animation: bar-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .tab-bar__tab[aria-current='page'] .tab-bar__icon { animation: tab-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes core-pop {
+  0% { transform: scale(0.82); }
+  100% { transform: scale(1); }
+}
+@keyframes nudge {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+@keyframes dot-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+@keyframes bar-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes tab-pop {
+  0% { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
