@@ -63,6 +63,20 @@ export function agentTurn(opts: {
   return r.toString();
 }
 
+/**
+ * Takeover with Nova Sonic: say the opening line, then connect the caller to a two-way stream
+ * (our /agent WebSocket) that carries the caller's voice in and the agent's voice out.
+ * Like agentTurn, redirecting the caller here disconnects the elder.
+ */
+export function agentStream(opts: { opening: string; streamUrl: string; token: string; callSid: string }): string {
+  const r = new VoiceResponse();
+  r.say({ voice: AGENT_VOICE }, opts.opening);
+  const stream = r.connect().stream({ url: opts.streamUrl });
+  stream.parameter({ name: 'token', value: opts.token });
+  stream.parameter({ name: 'callSid', value: opts.callSid });
+  return r.toString();
+}
+
 /** Keeps the caller on the line while the agent waits for a reply. */
 export function idle(idleUrl: string): string {
   const r = new VoiceResponse();

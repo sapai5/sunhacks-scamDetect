@@ -2,6 +2,7 @@
 // phone numbers from backend/local.config.json (gitignored); AWS endpoints from the deployed stacks.
 import { existsSync, readFileSync } from 'node:fs';
 import { CloudFormationClient, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
+import type { SonicPersona } from './sonic.js';
 
 const envPath = new URL('./.env', import.meta.url);
 if (existsSync(envPath)) process.loadEnvFile(envPath);
@@ -31,6 +32,13 @@ export interface BridgeConfig {
   callsTable: string;
   eldersTable: string;
   agentUrl: string;
+  /**
+   * Who talks to the caller during a takeover. 'sonic' (default): Amazon Nova Sonic over a two-way
+   * stream. 'say' (AGENT_VOICE=say): the Agent Lambda's lines with Twilio <Say>, the fallback.
+   */
+  agentVoice: 'sonic' | 'say';
+  /** The agent's persona from cdk.json, used when the elder has no settings in the Elders table. */
+  persona: SonicPersona;
 }
 
 async function outputs(cf: CloudFormationClient, stack: string): Promise<Record<string, string>> {
@@ -43,6 +51,7 @@ export async function loadConfig(): Promise<BridgeConfig> {
     elderPhone: string;
     trustedContacts?: string[];
   };
+  const ctx = JSON.parse(readFileSync(new URL('../cdk.json', import.meta.url), 'utf8')).context as Record<string, string>;
   const region = process.env.AWS_REGION ?? 'us-east-1';
   const cf = new CloudFormationClient({ region });
   const [stage1, data] = await Promise.all([outputs(cf, 'ScamShieldStage1'), outputs(cf, 'ScamShieldData')]);
@@ -63,5 +72,12 @@ export async function loadConfig(): Promise<BridgeConfig> {
     callsTable: data.CallsTableName,
     eldersTable: data.EldersTableName,
     agentUrl: stage1.AgentUrl,
+    agentVoice: process.env.AGENT_VOICE === 'say' ? 'say' : 'sonic',
+    persona: {
+      elderName: ctx.elderName,
+      agentName: ctx.agentName,
+      agentRelation: ctx.agentRelation,
+      verificationQuestion: ctx.verificationQuestion,
+    },
   };
 }
