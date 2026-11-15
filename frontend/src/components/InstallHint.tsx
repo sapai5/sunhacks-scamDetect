@@ -11,7 +11,7 @@ export function InstallHint() {
   return (
     <div className="install-hint" role="note">
       <div className="install-hint__text">
-        <p className="install-hint__title">Add ScamDetermine to your Home Screen</p>
+        <p className="install-hint__title">Add Call Me Maybe... NOT to your Home Screen</p>
         {mode === 'ios' ? (
           <p className="install-hint__body">
             Tap <ShareIcon /> <b>Share</b>, then <b>Add to Home Screen</b>. It opens full screen and keeps working on bad Wi-Fi.

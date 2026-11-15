@@ -51,7 +51,7 @@ export async function alertFamily(elder: ElderSettings, req: AnalyzeRequest, s: 
     .map((u) => `"${u.text.slice(0, 120)}"`)
     .join(' ');
   const message =
-    `Scam Shield: ${elder.elderName} is on a likely scam call and is starting to go along with it. ` +
+    `Call Me Maybe... NOT: ${elder.elderName} is on a likely scam call and is starting to go along with it. ` +
     `Signs: ${s.tactics.join(', ').replaceAll('_', ' ')}. ${s.reason} ` +
     (s.exposures?.length ? `They may already have given the caller ${exposureSentence(s.exposures, 'their')}. ` : '') +
     `Last words: ${lastLines} Please call them now.`;

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { StartRoute } from './flow/routes';
 import { TabBar } from './components/TabBar';
@@ -6,9 +6,11 @@ import { syncSettings } from './lib/api';
 import { CallProvider, useCallContext } from './lib/CallContext';
 import { useCallLogRecorder } from './lib/callLog';
 import { loadSettings, takeSampleFamilyRemoval } from './lib/settings';
-import { SCREENS } from './routes';
-import Schematic from './screens/Schematic';
+import { APP_SCREENS } from './routes';
 import './styles/motion.css';
+
+// `import.meta.env.DEV` is false in `vite build`, so Rollup drops this import and the preview screens.
+const DevRoutes = import.meta.env.DEV ? lazy(() => import('./devRoutes')) : null;
 
 /** Saves each call (and its transcript) to the on-device call log as it goes. */
 function CallLogRecorder() {
@@ -48,8 +50,12 @@ export default function App() {
       <NotificationRouter />
       <Routes>
         <Route path="/" element={<StartRoute />} />
-        <Route path="/schematic" element={<Schematic />} />
-        {SCREENS.map(({ path, component: Screen, layout, theme }) => (
+        {DevRoutes && (
+          <Suspense fallback={null}>
+            <DevRoutes />
+          </Suspense>
+        )}
+        {APP_SCREENS.map(({ path, component: Screen, layout, theme }) => (
           <Route
             key={path}
             path={path}

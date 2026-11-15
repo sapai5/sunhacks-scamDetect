@@ -17,7 +17,7 @@ export default function F1SmsAlert({ elderName = 'Mom', signs = 'asks for gift c
       <p className="sms-title">Messages</p>
       <p className="sms-time">{time}</p>
       <SmsBubble>
-        ScamDetermine RED ALERT: {elderName} is on a call with {SAMPLE_CALLER.number} that looks like a scam ({signs}). Transcript: sd.link/c/4821
+        Call Me Maybe... NOT RED ALERT: {elderName} is on a call with {SAMPLE_CALLER.number} that looks like a scam ({signs}). Transcript: sd.link/c/4821
       </SmsBubble>
     </div>
   );

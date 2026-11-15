@@ -21,7 +21,7 @@ export default function E8CallLog({ entries }: { entries?: CallLogEntry[] }) {
     <div className="screen-log">
       <h1 className="screen-heading">Past calls</h1>
       {calls.length === 0 ? (
-        <p className="screen-lede">No calls yet. Calls ScamDetermine listens to show up here, with what was said.</p>
+        <p className="screen-lede">No calls yet. Calls Call Me Maybe... NOT listens to show up here, with what was said.</p>
       ) : (
         <ul className="call-log">
           {calls.map((c) => (

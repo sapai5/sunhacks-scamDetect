@@ -62,7 +62,7 @@ export class Stage1Stack extends cdk.Stack {
     super(scope, id, props);
 
     // --- Family alert: SNS topic, texts (and optionally emails) the family on red.
-    const familyTopic = (this.familyTopic = new sns.Topic(this, 'FamilyAlerts', { displayName: 'Scam Shield' }));
+    const familyTopic = (this.familyTopic = new sns.Topic(this, 'FamilyAlerts', { displayName: 'Call Me Maybe... NOT' }));
     if (props.familyPhone) familyTopic.addSubscription(new subs.SmsSubscription(props.familyPhone));
     if (props.familyEmail) familyTopic.addSubscription(new subs.EmailSubscription(props.familyEmail));
 

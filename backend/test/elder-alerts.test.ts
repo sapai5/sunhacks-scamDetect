@@ -44,7 +44,7 @@ describe('elderAlertsFor: when the elder gets a text / notification', () => {
   it('builds a text with the app link', () => {
     const [a] = elderAlertsFor(undefined, { level: 'red' }, 'CA1');
     expect(smsText(a, 'https://app.example.com/')).toBe(
-      "ScamDetermine: This call may be a scam. Don't send money, gift cards or codes. Open ScamDetermine to see why. https://app.example.com/elder/live",
+      "Call Me Maybe... NOT: This call may be a scam. Don't send money, gift cards or codes. Open Call Me Maybe... NOT to see why. https://app.example.com/elder/live",
     );
   });
 });

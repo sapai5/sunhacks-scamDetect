@@ -49,8 +49,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       await sns.send(
         new PublishCommand({
           TopicArn: FAMILY_TOPIC_ARN,
-          Subject: `Scam Shield: update on ${persona.elderName}'s call`,
-          Message: `Scam Shield took over ${persona.elderName}'s call as ${persona.agentName}. ${FAMILY_HEADLINE[res.status]} ${res.summary}`,
+          Subject: `Call Me Maybe... NOT: update on ${persona.elderName}'s call`,
+          Message: `Call Me Maybe... NOT took over ${persona.elderName}'s call as ${persona.agentName}. ${FAMILY_HEADLINE[res.status]} ${res.summary}`,
         }),
       );
       res.familyNotified = true;

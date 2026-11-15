@@ -94,7 +94,7 @@ export class TelephonyStack extends cdk.Stack {
 
     const flow = new connect.CfnContactFlow(this, 'ProtectedFlow', {
       instanceArn: instance.attrArn,
-      name: 'Scam Shield protected number',
+      name: 'Call Me Maybe... NOT protected number',
       type: 'CONTACT_FLOW',
       description: 'Contacts check, then live media streaming for unknown callers, then transfer to the elder.',
       content: this.toJsonString(protectedFlow(contactsCheckFn.functionArn, props.elderPhone)),
@@ -105,7 +105,7 @@ export class TelephonyStack extends cdk.Stack {
       countryCode: 'US',
       type: 'DID',
       prefix: props.numberPrefix,
-      description: 'Scam Shield protected number',
+      description: 'Call Me Maybe... NOT protected number',
     });
 
     // CloudFormation can't point a number at a flow, so call the API directly.

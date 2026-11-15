@@ -31,10 +31,10 @@ export function parseEventRequest(body: unknown): CallEventRequest {
 export function familyMessage(e: CallEventRequest, elderName: string): string | null {
   if (e.type === 'speaker_off' && e.level !== 'green') {
     const what = e.level === 'red' ? 'a likely scam call' : 'a suspicious call';
-    return `ScamDetermine: ${elderName} may have taken ${what} off speaker, so we can no longer hear it. Please call ${elderName} now.`;
+    return `Call Me Maybe... NOT: ${elderName} may have taken ${what} off speaker, so we can no longer hear it. Please call ${elderName} now.`;
   }
   if (e.type === 'hangup' && e.level === 'red') {
-    return `ScamDetermine update: ${elderName} hung up on the likely scam call. You may want to check in.`;
+    return `Call Me Maybe... NOT update: ${elderName} hung up on the likely scam call. You may want to check in.`;
   }
   return null;
 }

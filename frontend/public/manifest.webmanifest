@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "ScamDetermine",
-  "short_name": "ScamDetermine",
+  "name": "Call Me Maybe... NOT",
+  "short_name": "Call Me Maybe... NOT",
   "description": "Listens to speakerphone calls and warns you, and your family, when one turns into a scam.",
   "start_url": "/?source=pwa",
   "scope": "/",

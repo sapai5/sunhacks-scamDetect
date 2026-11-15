@@ -1,4 +1,4 @@
-# Scam Shield product decisions
+# Call Me Maybe... NOT product decisions
 
 Decisions made by the team. Follow them in all stages unless the team changes them.
 

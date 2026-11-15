@@ -150,7 +150,7 @@ export function LiveRoute() {
     <>
       {wasBackgrounded && (
         <p className="call-banner" role="alert">
-          Keep ScamDetermine open during the call. Listening may have paused while it was in the background.
+          Keep Call Me Maybe... NOT open during the call. Listening may have paused while it was in the background.
         </p>
       )}
       {takeover ? (

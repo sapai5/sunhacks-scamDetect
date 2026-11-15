@@ -43,7 +43,7 @@ export function elderAlertsFor(before: AlertView | undefined, now: AlertView, ca
   const page = `/elder/call?id=${encodeURIComponent(callId)}`;
 
   if (now.level === 'red' && b.level !== 'red' && (b.peak ?? b.level) !== 'red' && now.agentStatus !== 'active') {
-    out.push({ kind: 'red', title: 'This call may be a scam', body: "Don't send money, gift cards or codes. Open ScamDetermine to see why.", path: live });
+    out.push({ kind: 'red', title: 'This call may be a scam', body: "Don't send money, gift cards or codes. Open Call Me Maybe... NOT to see why.", path: live });
   }
   if (now.agentStatus !== b.agentStatus) {
     if (now.agentStatus === 'active') {
@@ -79,5 +79,5 @@ export function worst(...levels: (Level | undefined)[]): Level {
 
 /** One text message: title, body and the app link, kept short for a lock-screen banner. */
 export function smsText(a: ElderAlert, webUrl: string): string {
-  return `ScamDetermine: ${a.title}. ${a.body} ${webUrl.replace(/\/+$/, '')}${a.path}`;
+  return `Call Me Maybe... NOT: ${a.title}. ${a.body} ${webUrl.replace(/\/+$/, '')}${a.path}`;
 }

@@ -4,7 +4,10 @@ import { Link, useNavigate } from 'react-router';
 import { FLOW } from '../flow/routes';
 import { resetSettings } from '../lib/settings';
 import { MIC_AVAILABLE, USE_MOCK } from '../lib/api';
-import { ROWS, SCREENS, type ScreenRoute } from '../routes';
+import { APP_SCREENS, ROWS, type ScreenRoute } from '../routes';
+import { WORKBENCH_SCREENS } from '../workbenchScreens';
+
+const SCREENS = [...APP_SCREENS, ...WORKBENCH_SCREENS];
 
 const FRAME = {
   phone: { w: 393, h: 852, scale: 0.5 },
@@ -39,7 +42,7 @@ export default function Schematic() {
   return (
     <main className="canvas">
       <header className="canvas-head">
-        <h1>ScamDetermine · 03 Screens</h1>
+        <h1>Call Me Maybe... NOT · 03 Screens</h1>
         <div className="canvas-meta">
           <span className="chip" style={{ '--dot': USE_MOCK ? 'var(--color-careful)' : 'var(--color-safe)' } as React.CSSProperties}>
             analyze: {USE_MOCK ? 'local mock' : 'live lambda'}

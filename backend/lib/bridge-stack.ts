@@ -58,7 +58,7 @@ export class BridgeStack extends cdk.Stack {
     });
 
     const distribution = new cloudfront.Distribution(this, 'Cdn', {
-      comment: 'Scam Shield Twilio bridge',
+      comment: 'Call Me Maybe... NOT Twilio bridge',
       defaultBehavior: {
         origin: new origins.LoadBalancerV2Origin(alb, {
           protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,

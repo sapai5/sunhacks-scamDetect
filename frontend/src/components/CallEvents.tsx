@@ -15,7 +15,7 @@ const SHEET_COPY: Record<CallPrompt['kind'], { title: string; body: string }> = 
   },
   speaker_check: {
     title: "We can't hear the caller",
-    body: 'Is the call still on speaker? ScamDetermine can only protect you when it can hear the call.',
+    body: 'Is the call still on speaker? Call Me Maybe... NOT can only protect you when it can hear the call.',
   },
   hangup_check: {
     title: 'Did the call end?',

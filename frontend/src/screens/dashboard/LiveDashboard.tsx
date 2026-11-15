@@ -1,4 +1,4 @@
-// Shared layout for D1–D3 (Figma "ScamDetermine · Live call"): chart + transcript on the
+// Shared layout for D1–D3 (Figma "Call Me Maybe... NOT · Live call"): chart + transcript on the
 // left, Risk/Light + Stage/Tracker + one context card on the right.
 import { EvidenceChart, DashboardTopBar, StageTracker, Transcript, VerdictCard, VerifyCard } from '../../components/Dashboard';
 import { EventTimeline } from '../../components/CallEvents';
@@ -24,7 +24,7 @@ export function LiveDashboard({ call, card = 'auto', now }: LiveDashboardProps) 
 
   return (
     <div className="dash">
-      <DashboardTopBar title="ScamDetermine · Live call" meta={meta}>
+      <DashboardTopBar title="Call Me Maybe... NOT · Live call" meta={meta}>
         <RiskLight state={view} size="badge" />
       </DashboardTopBar>
       <div className="dash-body">

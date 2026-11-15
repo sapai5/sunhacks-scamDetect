@@ -72,7 +72,7 @@ export function familyRecap(input: FamilyRecapInput): string | null {
         ? `${name} just hung up on a call that had warning signs.`
         : `${name}'s call just ended.`;
 
-  const parts = [`ScamDetermine: ${headline}`];
+  const parts = [`Call Me Maybe... NOT: ${headline}`];
   const reason = input.reason?.trim().slice(0, 280);
   if (reason) parts.push(reason);
 

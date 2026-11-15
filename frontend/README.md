@@ -1,4 +1,4 @@
-# Frontend (ScamDetermine PWA)
+# Frontend (Call Me Maybe... NOT PWA)
 
 React 19 + Vite + TypeScript + React Router. Deployed on Vercel. Built from the Figma file
 "sunhacks", page **03 Screens**.

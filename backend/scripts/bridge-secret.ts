@@ -39,6 +39,6 @@ try {
   console.log(`updated secret ${BRIDGE_SECRET_NAME}`);
 } catch (err) {
   if (!(err instanceof ResourceNotFoundException)) throw err;
-  await sm.send(new CreateSecretCommand({ Name: BRIDGE_SECRET_NAME, SecretString: value, Description: 'Scam Shield Twilio bridge (Fargate)' }));
+  await sm.send(new CreateSecretCommand({ Name: BRIDGE_SECRET_NAME, SecretString: value, Description: 'Call Me Maybe... NOT Twilio bridge (Fargate)' }));
   console.log(`created secret ${BRIDGE_SECRET_NAME}`);
 }

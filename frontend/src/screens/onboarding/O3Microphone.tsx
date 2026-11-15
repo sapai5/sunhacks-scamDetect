@@ -9,7 +9,7 @@ export interface O3Props {
 export default function O3Microphone({ onAllow }: O3Props) {
   return (
     <div className="screen-form">
-      <h1 className="screen-heading">Let ScamDetermine listen to your calls</h1>
+      <h1 className="screen-heading">Let Call Me Maybe... NOT listen to your calls</h1>
       <p className="screen-body">Calls are transcribed only to look for scams. Your family sees a transcript only when a call turns red.</p>
       <BigButton kind="primary" onClick={onAllow}>
         Allow and finish

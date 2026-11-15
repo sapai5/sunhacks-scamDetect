@@ -63,7 +63,7 @@ export async function disableAlerts(): Promise<AlertsState> {
 export async function showTestAlert(): Promise<void> {
   const reg = await navigator.serviceWorker.ready;
   await reg.showNotification('This is what an alert looks like', {
-    body: 'During a risky call, a notice like this appears. Tap it to open ScamDetermine.',
+    body: 'During a risky call, a notice like this appears. Tap it to open Call Me Maybe... NOT.',
     tag: 'scamdetermine-test',
     icon: '/icons/icon-192.png',
     data: { url: '/elder/idle' },

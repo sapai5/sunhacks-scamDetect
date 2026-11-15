@@ -1,6 +1,6 @@
 // E1 Idle protected. Figma node 15:3.
 // The Figma frame has no buttons; "Start listening" and the demo scripts are added so the demo can start a call.
-// Phone path (phoneProtected): calls to the ScamDetermine number open the live screen by themselves,
+// Phone path (phoneProtected): calls to the Call Me Maybe... NOT number open the live screen by themselves,
 // so the screen says that, and the speakerphone button and demos move under "Practice".
 import { AlertsCard } from '../../components/AlertsCard';
 import { InstallHint } from '../../components/InstallHint';
@@ -15,7 +15,7 @@ export interface E1Props {
   scripts?: string[];
   micAvailable?: boolean;
   onStart?: (mode: StartMode) => void;
-  /** Calls through the ScamDetermine number are checked automatically (push socket configured). */
+  /** Calls through the Call Me Maybe... NOT number are checked automatically (push socket configured). */
   phoneProtected?: boolean;
 }
 
@@ -55,7 +55,7 @@ export default function E1Idle({ familyCount = 3, scripts = [], micAvailable, on
           <details className="practice">
             <summary className="practice__summary">Practice and other calls</summary>
             <div className="screen-actions">
-              <p className="screen-note">For a call that didn't come through ScamDetermine, put it on speaker next to this phone.</p>
+              <p className="screen-note">For a call that didn't come through Call Me Maybe... NOT, put it on speaker next to this phone.</p>
               {listen}
               {demos}
             </div>
@@ -70,7 +70,7 @@ export default function E1Idle({ familyCount = 3, scripts = [], micAvailable, on
       <InstallHint />
       <RiskLight state="green" size="badge" label="Protected" ripple />
       <h1 className="screen-title">You're protected</h1>
-      <p className="screen-lede">ScamDetermine listens to your calls and warns you if one turns into a scam.</p>
+      <p className="screen-lede">Call Me Maybe... NOT listens to your calls and warns you if one turns into a scam.</p>
       <p className="screen-note">{family}</p>
       <p className="screen-note">Use this for calls from numbers that aren't in your contacts.</p>
       {onStart && (

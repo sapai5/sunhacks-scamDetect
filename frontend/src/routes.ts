@@ -1,25 +1,10 @@
-// Every screen in one list, named and ordered like the Figma "03 Screens" page.
-// The schematic (/schematic) and the router both read this. E1, E6, O1–O3 and LIVE are the
-// wired demo flow (see flow/routes.tsx); the other E screens are static previews with sample data. To claim a screen, put your name in `owner`.
+// Screens the shipped app routes. The design canvas (dev only) adds the preview frames
+// from workbenchScreens.ts. E1, E6, O1–O3 and LIVE are the wired flow (flow/routes.tsx).
 import type { ComponentType } from 'react';
-import D1LiveCall from './screens/dashboard/D1LiveCall';
-import D2Verification from './screens/dashboard/D2Verification';
-import D3Adjudication from './screens/dashboard/D3Adjudication';
-import D4Metrics from './screens/dashboard/D4Metrics';
-import D5LoadTest from './screens/dashboard/D5LoadTest';
-import E1aListening from './screens/elder/E1aListening';
-import E2Green from './screens/elder/E2Green';
-import E3Yellow from './screens/elder/E3Yellow';
-import E4Verifying from './screens/elder/E4Verifying';
-import E5Red from './screens/elder/E5Red';
-import E7Takeover from './screens/elder/E7Takeover';
 import E8CallLog from './screens/elder/E8CallLog';
 import E9CallDetail from './screens/elder/E9CallDetail';
 import E10Settings from './screens/elder/E10Settings';
-import E11WhatNext from './screens/elder/E11WhatNext';
 import { SETTINGS, SettingsFamilyRoute, SettingsQuestionRoute } from './flow/settingsRoutes';
-import F1SmsAlert from './screens/family/F1SmsAlert';
-import F2CallSummary from './screens/family/F2CallSummary';
 import { FLOW, IdleRoute, LiveRoute, O1Route, O2Route, O3Route, SummaryRoute } from './flow/routes';
 
 export type Section = 'Elder (smartphone)' | 'Onboarding' | 'Family' | 'Demo dashboard (desktop)';
@@ -42,35 +27,19 @@ export interface ScreenRoute {
   owner?: string;
 }
 
-export const SCREENS: ScreenRoute[] = [
+/** Routes in the production build. Preview frames stay in workbenchScreens.ts. */
+export const APP_SCREENS: ScreenRoute[] = [
   { id: 'LIVE', title: 'Live call', path: FLOW.live, section: 'Elder (smartphone)', layout: 'phone', component: LiveRoute, inGallery: false },
 
   { id: 'E1', title: 'Idle protected', path: FLOW.idle, section: 'Elder (smartphone)', layout: 'phone', component: IdleRoute },
-  { id: 'E1a', title: 'Call listening', path: '/elder/listening', section: 'Elder (smartphone)', layout: 'phone', component: E1aListening },
-  { id: 'E2', title: 'Call green', path: '/elder/green', section: 'Elder (smartphone)', layout: 'phone', component: E2Green },
-  { id: 'E3', title: 'Call yellow', path: '/elder/yellow', section: 'Elder (smartphone)', layout: 'phone', component: E3Yellow },
-  { id: 'E4', title: 'Call verifying', path: '/elder/verifying', section: 'Elder (smartphone)', layout: 'phone', component: E4Verifying },
-  { id: 'E5', title: 'Call red', path: '/elder/red', section: 'Elder (smartphone)', layout: 'phone', component: E5Red },
-  { id: 'E7', title: 'Family takeover', path: '/elder/takeover', section: 'Elder (smartphone)', layout: 'phone', component: E7Takeover },
   { id: 'E6', title: 'Call ended summary', path: FLOW.summary, section: 'Elder (smartphone)', layout: 'phone', component: SummaryRoute },
   { id: 'E8', title: 'Past calls', path: '/elder/calls', section: 'Elder (smartphone)', layout: 'phone', component: E8CallLog },
   { id: 'E9', title: 'Call transcript', path: '/elder/call', section: 'Elder (smartphone)', layout: 'phone', component: E9CallDetail },
-  { id: 'E11', title: 'What to do now (preview)', path: '/elder/what-next', section: 'Elder (smartphone)', layout: 'phone', component: E11WhatNext },
   { id: 'E10', title: 'Settings', path: SETTINGS.home, section: 'Elder (smartphone)', layout: 'phone', component: E10Settings },
   { id: 'E10a', title: 'Settings: family', path: SETTINGS.family, section: 'Elder (smartphone)', layout: 'phone', component: SettingsFamilyRoute, inGallery: false },
   { id: 'E10b', title: 'Settings: question', path: SETTINGS.question, section: 'Elder (smartphone)', layout: 'phone', component: SettingsQuestionRoute, inGallery: false },
-  { id: 'E5', title: 'Call red (Dark preview)', path: '/elder/red-dark', section: 'Elder (smartphone)', layout: 'phone', component: E5Red, theme: 'dark' },
 
   { id: 'O1', title: 'Family contacts', path: FLOW.o1, section: 'Onboarding', layout: 'phone', component: O1Route },
   { id: 'O2', title: 'Secret question', path: FLOW.o2, section: 'Onboarding', layout: 'phone', component: O2Route },
   { id: 'O3', title: 'Microphone permission', path: FLOW.o3, section: 'Onboarding', layout: 'phone', component: O3Route },
-
-  { id: 'F1', title: 'SMS alert', path: '/family/sms', section: 'Family', layout: 'phone', component: F1SmsAlert },
-  { id: 'F2', title: 'Call summary', path: '/family/summary', section: 'Family', layout: 'phone', component: F2CallSummary },
-
-  { id: 'D1', title: 'Live call', path: '/dashboard/live', section: 'Demo dashboard (desktop)', layout: 'desktop', component: D1LiveCall },
-  { id: 'D2', title: 'Verification moment', path: '/dashboard/verification', section: 'Demo dashboard (desktop)', layout: 'desktop', component: D2Verification },
-  { id: 'D3', title: 'Bedrock adjudication', path: '/dashboard/adjudication', section: 'Demo dashboard (desktop)', layout: 'desktop', component: D3Adjudication },
-  { id: 'D4', title: 'Metrics', path: '/dashboard/metrics', section: 'Demo dashboard (desktop)', layout: 'desktop', component: D4Metrics },
-  { id: 'D5', title: 'Load test', path: '/dashboard/load', section: 'Demo dashboard (desktop)', layout: 'desktop', component: D5LoadTest },
 ];

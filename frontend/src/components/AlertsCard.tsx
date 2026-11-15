@@ -7,8 +7,8 @@ import './alertsCard.css';
 const COPY: Record<AlertsState, { title: string; body: string }> = {
   off: { title: 'Get alerts during calls', body: 'If a call looks like a scam, a notice appears over your call screen, even when this app is closed.' },
   on: { title: 'Call alerts are on', body: "You'll get a notice over your call screen if a call looks like a scam." },
-  blocked: { title: 'Call alerts are blocked', body: 'To turn them on, open your phone’s Settings › Notifications › ScamDetermine.' },
-  'needs-install': { title: 'Get alerts during calls', body: 'First add ScamDetermine to your Home Screen (Share › Add to Home Screen), then open it from there.' },
+  blocked: { title: 'Call alerts are blocked', body: 'To turn them on, open your phone’s Settings › Notifications › Call Me Maybe... NOT.' },
+  'needs-install': { title: 'Get alerts during calls', body: 'First add Call Me Maybe... NOT to your Home Screen (Share › Add to Home Screen), then open it from there.' },
   unsupported: { title: 'Call alerts', body: "This phone or browser can't show call alerts. You'll still get text messages." },
 };
 

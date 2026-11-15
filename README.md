@@ -1,4 +1,4 @@
-# Elder Scam Call Shield: Stage 1
+# Call Me Maybe... NOT: Stage 1
 
 Speakerphone call → browser mic → Amazon Transcribe → Analyze Lambda → Bedrock (Claude Haiku) → green / yellow / red light.
 When the call is red and the elder starts going along with it, the family gets an email. When she's clearly falling for it, an agent posing as a family member takes over the call through the laptop speaker, checks the caller, and either hands the call back or ends it.

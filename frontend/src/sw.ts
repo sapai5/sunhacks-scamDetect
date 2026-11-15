@@ -35,7 +35,7 @@ interface AlertPayload {
 }
 
 self.addEventListener('push', (e) => {
-  let p: AlertPayload = { title: 'ScamDetermine', body: 'Open the app to see your call.', url: '/elder/live', tag: 'scamdetermine' };
+  let p: AlertPayload = { title: 'Call Me Maybe... NOT', body: 'Open the app to see your call.', url: '/elder/live', tag: 'scamdetermine' };
   try {
     p = { ...p, ...(e.data?.json() as Partial<AlertPayload>) };
   } catch {
