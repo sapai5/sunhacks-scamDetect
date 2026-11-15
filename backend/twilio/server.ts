@@ -122,7 +122,7 @@ async function onVoice(params: Record<string, string>, res: ServerResponse) {
   if (DRY_RUN) return;
   try {
     // Trial accounts reject inline `twiml` and `timeout`, so Twilio fetches the elder's TwiML from us.
-    await tw.calls.create({ to: cfg.elderPhone, from: cfg.dialFrom, url: `${cfg.publicUrl}/elder/${callSid}`, method: 'POST' });
+    await tw.calls.create({ to: cfg.elderPhone, from: cfg.dialFrom, url: `${cfg.publicUrl}/elder/${callSid}` }); // no `method`: trial rejects it, POST is the default
   } catch (err) {
     console.error('dialing the elder failed', err);
   }
