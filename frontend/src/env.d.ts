@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_EVENTS_URL?: string;
   /** Settings API URL (Data stack). Without it, onboarding settings stay in this browser. */
   readonly VITE_SETTINGS_URL?: string;
+  /** Push WebSocket URL (Data stack). Without it, the app doesn't show phone calls the backend is checking. */
+  readonly VITE_PUSH_URL?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

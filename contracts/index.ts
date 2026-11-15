@@ -84,6 +84,18 @@ export interface RiskState {
   familyAlerted: boolean;
 }
 
+/**
+ * Stage 2: Connect transcriber -> IngestFn, one per finished sentence.
+ * callId is the Amazon Connect ContactId. speaker comes from the KVS audio track,
+ * so it's exact: "caller" = from customer (the person who dialed in),
+ * "elder" = to customer (what the caller hears, i.e. the elder's phone).
+ * Direct Lambda invoke. IngestFn orders sentences by arrival (seq is ignored, ts defaults to now)
+ * and returns the call's new RiskState, or null while the agent has the call.
+ */
+export interface IngestRequest extends Utterance {
+  speaker: 'caller' | 'elder';
+}
+
 /** App -> Agent Lambda: the transcript so far, including the agent's own lines. */
 export interface AgentRequest {
   callId: string;
@@ -145,22 +157,8 @@ export interface CallEventResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Stage 2 (Track B): server-side call state, elder settings, push.
+// Stage 2 (Track B): elder settings and push. IngestRequest is above, next to RiskState.
 // ---------------------------------------------------------------------------
-
-/**
- * Transcriber -> IngestFn (direct Lambda invoke), one finished sentence.
- * IngestFn returns the call's new RiskState, or null while the agent has the call.
- */
-export interface IngestRequest {
-  /** Connect contact ID. */
-  callId: string;
-  elderId: string;
-  speaker: 'caller' | 'elder';
-  text: string;
-  /** Epoch ms when the sentence ended. Defaults to now. */
-  ts?: number;
-}
 
 export interface Contact {
   name: string;

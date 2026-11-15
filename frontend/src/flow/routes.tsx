@@ -88,6 +88,10 @@ export function O3Route() {
 export function IdleRoute() {
   const nav = useNavigate();
   const call = useCallContext();
+  // A phone call the backend started checking (pushed over the socket) opens the live screens.
+  useEffect(() => {
+    if (call.running) nav(FLOW.live);
+  }, [call.running, nav]);
   return (
     <E1Idle
       familyCount={loadSettings().family.filter((c) => c.phone).length}

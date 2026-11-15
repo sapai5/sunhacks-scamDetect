@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { AgentStatus, RiskState, Utterance, Verification } from '../../../contracts/index.js';
 import { TEST_SCRIPTS } from '../../../backend/scripts/test-scripts.js';
 import { agentTurn, analyze } from './api';
-import { elderView } from './callState';
+import { elderView, pushedStateEffect } from './callState';
 import type { CallSnapshot, RiskPoint } from './snapshot';
 import { speak, stopSpeaking, unlockSpeech } from './speech';
 import type { Transcriber } from './transcribe';
@@ -60,6 +60,8 @@ export function useCall() {
     inFlight: Promise.resolve(),
     transcriber: null as Transcriber | null,
     running: false,
+    /** A phone call the backend scores (pushed RiskStates), not a speakerphone or demo call. */
+    phone: false,
     /** Listeners for raw mic audio (hang-up / speaker detection) and finished caller lines. */
     audioListeners: new Set<(chunk: Float32Array, sampleRate: number) => void>(),
     lineListeners: new Set<(text: string) => void>(),
@@ -207,40 +209,76 @@ export function useCall() {
     setRunning(false);
   }, []);
 
+  /** Reset everything for a new call with this id and mark it running. */
+  const begin = useCallback((id: string, phone: boolean) => {
+    const r = s.current;
+    r.transcriber?.stop();
+    clearTimeout(r.agentTimer);
+    clearTimeout(r.silenceTimer);
+    Object.assign(r, {
+      callId: id,
+      utterances: [],
+      risk: null,
+      verification: 'unasked',
+      familyAlerted: false,
+      agentStatus: 'idle',
+      agentBusy: false,
+      demoReplies: null,
+      running: true,
+      phone,
+      transcriber: null,
+      inFlight: Promise.resolve(),
+    });
+    setCallId(id);
+    setRisk(null);
+    setVerification('unasked');
+    setQuestion(null);
+    setTranscript([]);
+    setHistory([]);
+    setPartial('');
+    setLatencies([]);
+    setAgentStatus('idle');
+    setAgentSpeaking(false);
+    setAgentSummary('');
+    setStartedAt(Date.now());
+    setRunning(true);
+  }, []);
+
+  /**
+   * Phone path: a RiskState the backend pushed for a phone call it is scoring (IngestFn).
+   * Shows that call on the live screens; nothing is sent from here. A speakerphone or demo
+   * call in progress takes priority, and a call the elder already ended stays ended.
+   */
+  const follow = useCallback(
+    (next: RiskState) => {
+      const r = s.current;
+      const effect = pushedStateEffect(r, next);
+      if (effect === 'ignore') return;
+      if (effect === 'new') {
+        begin(next.callId, true);
+        setStatus('Phone call, checked by the server');
+      }
+      const prev = r.risk;
+      // familyAlerted is only true on the result that sent the alert; keep it sticky.
+      r.familyAlerted ||= next.familyAlerted;
+      r.risk = { ...next, familyAlerted: r.familyAlerted };
+      setRisk(r.risk);
+      if (next.verificationQuestion) setQuestion(next.verificationQuestion);
+      setHistory((h) => [
+        ...h,
+        { seq: h.length, risk: next.risk, level: next.level, newTactics: next.tactics.filter((t) => !prev?.tactics.includes(t)) },
+      ]);
+      // ponytail: no agent takeover on the phone path yet (needs Track A's A4 answer); the red screen shows instead.
+    },
+    [begin],
+  );
+
   const start = useCallback(
     async (mode: StartMode) => {
       unlockSpeech(); // must run inside the tap, for iOS
       const r = s.current;
-      r.transcriber?.stop();
-      clearTimeout(r.agentTimer);
-      clearTimeout(r.silenceTimer);
       const id = `c-${shortId()}`;
-      Object.assign(r, {
-        callId: id,
-        utterances: [],
-        risk: null,
-        verification: 'unasked',
-        familyAlerted: false,
-        agentStatus: 'idle',
-        agentBusy: false,
-        demoReplies: null,
-        running: true,
-        transcriber: null,
-        inFlight: Promise.resolve(),
-      });
-      setCallId(id);
-      setRisk(null);
-      setVerification('unasked');
-      setQuestion(null);
-      setTranscript([]);
-      setHistory([]);
-      setPartial('');
-      setLatencies([]);
-      setAgentStatus('idle');
-      setAgentSpeaking(false);
-      setAgentSummary('');
-      setStartedAt(Date.now());
-      setRunning(true);
+      begin(id, false);
       try {
         if (mode.kind === 'demo') {
           const script = TEST_SCRIPTS.find((t) => t.name === mode.script);
@@ -271,7 +309,7 @@ export function useCall() {
         stop();
       }
     },
-    [addSentence, stop],
+    [addSentence, begin, stop],
   );
 
   /** Elder reports the caller's answer to the family question. Re-scores right away. */
@@ -322,7 +360,7 @@ export function useCall() {
     [callId, running, startedAt, risk, view, verification, question, transcript, history, latencies, agentStatus],
   );
 
-  return { ...snapshot, partial, status, agentSpeaking, agentSummary, start, stop, answerVerification, takeBack, subscribeAudio, subscribeLines, latest, snapshot };
+  return { ...snapshot, partial, status, agentSpeaking, agentSummary, start, stop, follow, answerVerification, takeBack, subscribeAudio, subscribeLines, latest, snapshot };
 }
 
 export type CallController = ReturnType<typeof useCall>;

@@ -8,6 +8,7 @@ const ANALYZE_URL = import.meta.env.VITE_ANALYZE_URL;
 const AGENT_URL = import.meta.env.VITE_AGENT_URL;
 const EVENTS_URL = import.meta.env.VITE_EVENTS_URL;
 const SETTINGS_URL = import.meta.env.VITE_SETTINGS_URL;
+const PUSH_URL = import.meta.env.VITE_PUSH_URL;
 const FORCE_MOCK = new URLSearchParams(location.search).has('mock');
 
 /** True when no Analyze URL is configured, or the page was opened with ?mock. */
@@ -93,4 +94,36 @@ export async function syncSettings(s: Settings): Promise<boolean> {
     console.warn('settings: not saved to the backend', err);
     return false;
   }
+}
+
+/**
+ * Phone path: the backend pushes each new RiskState for the elder's phone calls over a WebSocket.
+ * Calls onState for each one and reconnects whenever the socket closes (API Gateway drops idle
+ * sockets after 10 minutes). Returns a function that closes it. Off without VITE_PUSH_URL or with ?mock.
+ */
+export function listenForPhoneCalls(elderId: string, onState: (s: RiskState) => void): () => void {
+  if (!PUSH_URL || FORCE_MOCK) return () => {};
+  let ws: WebSocket | undefined;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let closed = false;
+  const open = () => {
+    ws = new WebSocket(`${PUSH_URL}?elderId=${encodeURIComponent(elderId)}`);
+    ws.onmessage = (e) => {
+      try {
+        const s = JSON.parse(e.data) as RiskState;
+        if (typeof s.callId === 'string' && s.level) onState(s);
+      } catch {
+        /* not a RiskState */
+      }
+    };
+    ws.onclose = () => {
+      if (!closed) retry = setTimeout(open, 5_000);
+    };
+  };
+  open();
+  return () => {
+    closed = true;
+    clearTimeout(retry);
+    ws?.close();
+  };
 }

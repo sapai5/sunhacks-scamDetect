@@ -244,7 +244,8 @@ function onSentence(call: Call, speaker: 'caller' | 'elder', text: string) {
     }
   }
   // One IngestFn call at a time per call, so each sentence is scored on the previous state.
-  call.ingestChain = call.ingestChain.then(() => ingest(call, { callId: call.callSid, elderId: cfg.elderId, speaker, text, ts }));
+  const seq = call.utterances.length - 1;
+  call.ingestChain = call.ingestChain.then(() => ingest(call, { callId: call.callSid, elderId: cfg.elderId, speaker, text, ts, seq }));
 }
 
 async function ingest(call: Call, req: IngestRequest) {

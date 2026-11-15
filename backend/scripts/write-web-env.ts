@@ -11,6 +11,7 @@ const env = [
   `VITE_AGENT_URL=${o.AgentUrl}`,
   `VITE_EVENTS_URL=${o.EventsUrl ?? ''}`,
   `VITE_SETTINGS_URL=${d.SettingsUrl ?? ''}`,
+  `VITE_PUSH_URL=${d.PushUrl ?? ''}`,
 ].join('\n');
 writeFileSync(new URL('../../frontend/.env.local', import.meta.url), env + '\n');
 console.log('wrote frontend/.env.local');
