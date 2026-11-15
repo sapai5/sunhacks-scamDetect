@@ -139,7 +139,8 @@ export interface AgentResponse {
   /** Line for the browser to speak. Empty when there's nothing more to say. */
   say: string;
   /** 'active' means keep the conversation going. */
-  status: Exclude<AgentStatus, 'idle' | 'stopped'>;
+  /** 'stopped': the elder said out loud that they know the caller and told the agent to step back (phone calls). */
+  status: Exclude<AgentStatus, 'idle'>;
   summary: string;
   /** True if this response emailed the family a summary. */
   familyNotified: boolean;

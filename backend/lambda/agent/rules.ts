@@ -9,10 +9,11 @@ const MAX_SAY = 300;
 export const SAFE_LINE = "Sorry, I can't help with that over the phone. Can you answer my question first?";
 export const GOODBYE_LINE = "We're going to call the family directly on a number we already have. Goodbye.";
 export const HANDBACK_LINE = 'Okay, thanks. Sorry about that, we just have to be careful. Here she is.';
+export const STEP_BACK_LINE = "Okay, I'll step back. I'm here if you need me.";
 export const TIMEOUT_LINE = "I'm going to let you go. We'll call back on a number we already have. Goodbye.";
 
 type Outcome = Pick<AgentResponse, 'say' | 'status' | 'summary'>;
-const STATUSES: AgentResponse['status'][] = ['active', 'verified', 'scam_confirmed', 'caller_left'];
+const STATUSES: AgentResponse['status'][] = ['active', 'verified', 'scam_confirmed', 'caller_left', 'stopped'];
 
 export function agentTurns(utterances: Utterance[]): number {
   return utterances.filter((u) => u.speaker === 'agent').length;
@@ -20,13 +21,16 @@ export function agentTurns(utterances: Utterance[]): number {
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
-/** True if a non-agent line after the agent's first line contains the answer as whole words. */
+/**
+ * True if a line after the agent's first line contains the answer as whole words. Lines labelled
+ * 'elder' (phone calls, where the elder stays on the line) don't count: the caller must say it.
+ */
 export function callerGaveAnswer(utterances: Utterance[], answer: string): boolean {
   const sorted = [...utterances].sort((a, b) => a.seq - b.seq);
   const firstAgent = sorted.findIndex((u) => u.speaker === 'agent');
   if (firstAgent < 0) return false;
   const want = ` ${normalize(answer)} `;
-  return sorted.slice(firstAgent + 1).some((u) => u.speaker !== 'agent' && ` ${normalize(u.text)} `.includes(want));
+  return sorted.slice(firstAgent + 1).some((u) => u.speaker !== 'agent' && u.speaker !== 'elder' && ` ${normalize(u.text)} `.includes(want));
 }
 
 /** Parse the model reply and apply our guards. */
@@ -45,6 +49,11 @@ export function parseAgentReply(text: string, utterances: Utterance[], verificat
     summary = summary || 'The caller answered the family question correctly.';
   }
 
+  // Only the elder can send the agent away, and only where their lines are labelled reliably (phone calls).
+  const sorted = [...utterances].sort((a, b) => a.seq - b.seq);
+  const joined = sorted.findIndex((u) => u.speaker === 'agent');
+  if (status === 'stopped' && !(joined >= 0 && sorted.slice(joined + 1).some((u) => u.speaker === 'elder'))) status = 'active';
+
   // Never let the agent say the verification answer, whatever the caller tricked it into.
   if (verificationAnswer && say.toLowerCase().includes(verificationAnswer.toLowerCase())) say = SAFE_LINE;
 
@@ -58,5 +67,6 @@ export function parseAgentReply(text: string, utterances: Utterance[], verificat
   // A final decision must close the conversation, not ask another question.
   if (status === 'scam_confirmed' && (!say || say.includes('?'))) say = GOODBYE_LINE;
   if (status === 'verified' && (!say || say.includes('?'))) say = HANDBACK_LINE;
+  if (status === 'stopped' && (!say || say.includes('?'))) say = STEP_BACK_LINE;
   return { say, status, summary };
 }

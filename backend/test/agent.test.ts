@@ -6,6 +6,7 @@ import {
   MAX_AGENT_TURNS,
   parseAgentReply,
   SAFE_LINE,
+  STEP_BACK_LINE,
   TIMEOUT_LINE,
 } from '../lambda/agent/rules.js';
 
@@ -16,6 +17,22 @@ describe('parseAgentReply', () => {
   it('passes a normal turn through', () => {
     const r = parseAgentReply(reply({ say: 'Who is this?', status: 'active', summary: 's' }), [u('caller', 0)], 'Biscuit');
     expect(r).toEqual({ say: 'Who is this?', status: 'active', summary: 's' });
+  });
+
+  it('on a phone call, the elder saying the answer does not verify the caller', () => {
+    const said = (speaker: string, seq: number, text: string) => ({ ...u(speaker, seq), text });
+    const call = [u('agent', 0), said('elder', 1, 'It was Biscuit!')];
+    expect(callerGaveAnswer(call, 'Biscuit')).toBe(false);
+    expect(callerGaveAnswer([...call, said('caller', 2, 'biscuit, yeah')], 'Biscuit')).toBe(true);
+  });
+
+  it('only the elder can send the agent away', () => {
+    const stop = reply({ say: 'Shall I go?', status: 'stopped', summary: 's' });
+    expect(parseAgentReply(stop, [u('agent', 0), u('caller', 1)], 'Biscuit').status).toBe('active');
+    expect(parseAgentReply(stop, [u('elder', 0), u('agent', 1), u('caller', 2)], 'Biscuit').status).toBe('active');
+    const r = parseAgentReply(stop, [u('agent', 0), u('elder', 1)], 'Biscuit');
+    expect(r.status).toBe('stopped');
+    expect(r.say).toBe(STEP_BACK_LINE); // a closing line can't be a question
   });
 
   it('never says the verification answer', () => {

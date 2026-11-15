@@ -30,6 +30,7 @@ import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-
 import twilio from 'twilio';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { AgentResponse, AgentStatus, IngestRequest, RiskState, Utterance } from '../../contracts/index.js';
+import { callerGaveAnswer } from '../lambda/agent/rules.js';
 import { isTrusted } from '../telephony/contacts-check/index.js';
 import { mixPcm16, mulawToPcm16, pcm16ToMulaw, speechMs } from './audio.js';
 import { loadConfig } from './config.js';
@@ -109,6 +110,10 @@ const MAX_BACKLOG = 25;
 /** A takeover where Nova Sonic talks with the caller and the elder. */
 interface SonicTakeover {
   session: SonicSession;
+  /** The answer to the family question: the caller saying it ends the takeover at once. */
+  answer: string;
+  /** Sonic started to say the answer: its voice is dropped until someone else speaks. */
+  muted: boolean;
   /** What the agent is saying this turn; saved as one line when the turn ends. */
   agentText: string;
   flushTimer?: NodeJS.Timeout;
@@ -385,8 +390,13 @@ function onSentence(call: Call, speaker: 'caller' | 'elder', text: string) {
   if (call.sonic) {
     // Nova Sonic has the conversation (it hears the caller and the elder as one voice). Transcribe
     // hears them apart, so the judge knows who said what: each caller reply goes to it.
-    if (speaker === 'caller' && !call.sonic.closing) {
-      const t = call.sonic;
+    // The elder's lines go to it too: the elder can tell the agent they know the caller (it steps back).
+    const t = call.sonic;
+    if (!t.closing && speaker === 'caller' && t.answer && callerGaveAnswer(call.utterances, t.answer)) {
+      // The right answer: no need to wait for the judge. It still gets the call, to tell the family.
+      void closeSonicTakeover(call, t, 'verified', '', 'The caller answered the family question correctly.');
+      askAgent(call).catch((err) => console.error('telling the family failed', err));
+    } else if (!t.closing) {
       clearTimeout(t.judgeTimer);
       t.judgeTimer = setTimeout(() => void judge(call, t), JUDGE_DELAY_MS);
     }
@@ -473,7 +483,7 @@ async function agentTurn(call: Call) {
       call.ingestChain = call.ingestChain.then(() => ingest(call, { callId: call.callSid, elderId: cfg.elderId, speaker: 'agent', text: a.say, ts, seq }));
     }
     // After the line: keep listening, ring the elder back (verified), or hang up (scam / caller gone).
-    const then = a.status === 'active' ? 'listen' : a.status === 'verified' ? 'handback' : 'hangup';
+    const then = a.status === 'active' ? 'listen' : a.status === 'verified' || a.status === 'stopped' ? 'handback' : 'hangup';
     await speak(call, a.say, then);
     log(call.callSid, 'agent', { status: a.status, say: a.say });
     if (a.status !== 'active') return await finishAgent(call, a.status, a.say, a.summary);
@@ -578,14 +588,16 @@ const QUIET_PROMPT_MS = 8000;
 const STILL_THERE = 'Hello? Are you still there?';
 const QUIET_GOODBYE = "I can't hear you, so I'm going to hang up now. Goodbye.";
 /** Said to both when the caller is verified and the elder is still on the line. */
-const VERIFIED_LINE = "Thanks, that checks out. I'll let you two talk.";
+const VERIFIED_LINE = "Thanks, that's right. I'll let you two talk.";
+/** Said to both when the elder says they know the caller and sends the agent away. */
+const STEP_BACK_LINE = "Okay, I'll step back. I'm here if you need me.";
 /** Said to the elder alone after the caller is hung up on. */
 const ELDER_SCAM_LINE = "That caller couldn't prove who they were, so I ended the call. Please don't call that number back.";
 const ELDER_QUIET_LINE = 'The caller went quiet, so I ended the call.';
 /** Transcribe reports the caller's words sentence by sentence; judge once they stop coming for this long. */
 const JUDGE_DELAY_MS = 700;
 
-/** The elder's settings, or the cdk.json persona. The verification answer is deliberately not read. */
+/** The elder's settings, or the cdk.json persona. */
 async function persona(): Promise<SonicPersona> {
   const p = cfg.persona;
   try {
@@ -595,6 +607,7 @@ async function persona(): Promise<SonicPersona> {
       agentName: Item?.agentName ?? p.agentName,
       agentRelation: Item?.agentRelation ?? p.agentRelation,
       verificationQuestion: Item?.verificationQuestion ?? p.verificationQuestion,
+      verificationAnswer: Item?.verificationAnswer ?? p.verificationAnswer,
     };
   } catch (err) {
     console.error('elder settings read failed, using cdk.json', err);
@@ -632,6 +645,8 @@ async function startSonicTakeover(call: Call) {
         sonicFailed(call, t);
       },
     }),
+    answer: p.verificationAnswer,
+    muted: false,
     agentText: '',
     judging: false,
     judgeAgain: false,
@@ -759,7 +774,7 @@ function playVoice(call: Call, pcm: Buffer) {
 }
 
 function playToCall(call: Call, t: SonicTakeover, pcm: Buffer) {
-  if (t.closing) return;
+  if (t.closing || t.muted) return;
   playVoice(call, pcm);
   t.speakingUntil = Math.max(Date.now(), t.speakingUntil) + (pcm.length / 2 / 8000) * 1000;
 }
@@ -767,6 +782,14 @@ function playToCall(call: Call, t: SonicTakeover, pcm: Buffer) {
 function onSonicText(call: Call, t: SonicTakeover, speaker: 'caller' | 'agent', text: string) {
   if (t.closing || !text.trim()) return;
   if (speaker === 'agent') {
+    // Sonic knows the answer and is told never to say it. Its text arrives before its voice: if the
+    // answer is in it, drop what's queued and mute it until someone else speaks.
+    if (t.answer && ` ${text.toLowerCase()} `.includes(t.answer.toLowerCase())) {
+      console.warn('Nova Sonic started to say the verification answer: muted for this turn');
+      t.muted = true;
+      for (const leg of Object.values(call.legs ?? {})) leg.voice = Buffer.alloc(0);
+      return;
+    }
     // Sonic sends a turn sentence by sentence; keep it as one line (the Agent Lambda caps agent lines).
     t.agentText += `${t.agentText ? ' ' : ''}${text.trim()}`;
     clearTimeout(t.flushTimer);
@@ -776,6 +799,7 @@ function onSonicText(call: Call, t: SonicTakeover, speaker: 'caller' | 'agent', 
   // The caller or the elder spoke. Sonic can't tell them apart, so the words themselves are recorded
   // from Transcribe (onSentence), which can.
   flushAgentText(call, t);
+  t.muted = false;
   t.lastHeard = Date.now();
   t.prompts = 0;
 }
@@ -877,14 +901,16 @@ async function closeSonicTakeover(call: Call, t: SonicTakeover, status: AgentSta
   if (!(await setAgentStatus(call, 'active', status, summary))) return await stepBack(call); // "Let me talk" won
   call.agentStatus = status;
   texts.update(call.callSid, { agentStatus: status });
-  const together = status === 'verified' && Boolean(call.legs?.elder.ws);
-  const line = together ? VERIFIED_LINE : say;
+  // Verified, or the elder said they know the caller: with the elder on the line, the agent just steps back.
+  const together = (status === 'verified' || status === 'stopped') && Boolean(call.legs?.elder.ws);
+  const line = !together ? say : status === 'verified' ? VERIFIED_LINE : say || STEP_BACK_LINE;
   if (line) recordLine(call, 'agent', line);
   log(call.callSid, 'agent finished', { status, say: line, voice: 'sonic' });
   try {
     if (together) {
       // The elder never left: the agent steps back and the two keep talking through the bridge.
       call.sonic = undefined;
+      for (const leg of Object.values(call.legs ?? {})) leg.voice = Buffer.alloc(0); // cut Sonic off mid-sentence
       return playVoice(call, await tts(line));
     }
     const legs = call.legs;
@@ -904,7 +930,7 @@ async function closeSonicTakeover(call: Call, t: SonicTakeover, status: AgentSta
     }
     // The caller: the closing line, then hang up (or, verified with the elder gone, ring the elder back).
     // The redirect ends the caller's two-way stream.
-    await speak(call, line, status === 'verified' ? 'handback' : 'hangup');
+    await speak(call, line, status === 'verified' || status === 'stopped' ? 'handback' : 'hangup');
     legs?.caller.ws?.close();
   } catch (err) {
     console.error('closing line failed', err);

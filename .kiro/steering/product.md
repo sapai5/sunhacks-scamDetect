@@ -12,7 +12,7 @@ Decisions made by the team. Follow them in all stages unless the team changes th
 - Channel this weekend: SNS email (`familyEmail`). US SMS needs a registered toll-free/10DLC number (up to 15 business days), so it's deferred.
 
 ## Agent takeover
-- The agent joins as soon as the call is red, whether or not the elder is going along with it: its job is to find out if the caller is real (changed from "red AND the elder is complying"). On a phone call the elder stays on the line and hears it. Once per call; never again after the elder taps "Let me talk".
+- The agent joins as soon as the call is red, whether or not the elder is going along with it: its job is to find out if the caller is real (changed from "red AND the elder is complying"). On a phone call the elder stays on the line and hears it. Once per call; never again after the elder taps "Let me talk". On a phone call the elder can also say it out loud ("I know him, please stop"): the agent steps back, and the family is still told.
 - The agent speaks as a family member (configured `agentName` / `agentRelation`, default "Mike, her son"), not as an AI assistant. It must not claim to be the person the caller is impersonating.
 - The agent verifies the caller (family question for claimed relatives, callback number for organizations), never agrees to pay, never shares the elder's information, and ends with verified / scam_confirmed / caller_left. The family gets a follow-up summary.
 - A caller the agent verified can't push the call back to red; it stays at yellow at most.

@@ -11,12 +11,16 @@ agent_takeover → the agent joins the call and the elder stays on it. The elder
                  bridge mixes them into a three-way call (no Twilio conference, so it works on a trial
                  account): each person hears the other and the agent. Amazon Nova Sonic hears both, talks to
                  both and builds on the elder's questions; Transcribe still hears each person apart, and
-                 Claude Haiku (the Agent Lambda) reads each caller reply and decides the verdict. Sonic never
-                 gets the verification answer, and is told to cut in if the elder starts to say it.
+                 Claude Haiku (the Agent Lambda) reads each reply and decides the verdict. Sonic knows the
+                 verification answer, so it says "that's right" at once instead of stalling; it is told never to
+                 say it, and the bridge mutes it if it starts to. The caller saying the answer ends the takeover
+                 immediately (no wait for the judge); the elder saying it doesn't count.
                  AGENT_VOICE=say falls back to saying each Agent Lambda line with <Say> to the caller alone
                  (the elder's leg drops).
                → each agent line goes to IngestFn as speaker 'agent' (the app shows it)
 "Let me talk"  → the app sets Calls.agentStatus = stopped → the agent goes quiet; the two keep talking
+elder vouches  → the elder says out loud that they know the caller and tells the agent to stop → same as
+                 "Let me talk": the agent says it's stepping back and goes quiet (the family is still told)
 verified       → "That checks out. I'll let you two talk.", the agent steps back, the two keep talking
 scam confirmed → goodbye to the caller and hang up; the elder hears why, then their leg ends
 call ends      → Calls.ended = true (after queued sentences are scored) → the app closes the call, shows the summary

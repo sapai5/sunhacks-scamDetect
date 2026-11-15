@@ -105,6 +105,7 @@ export async function loadConfig(): Promise<BridgeConfig> {
       agentName: ctx.agentName,
       agentRelation: ctx.agentRelation,
       verificationQuestion: ctx.verificationQuestion,
+      verificationAnswer: ctx.verificationAnswer,
     },
     webUrl: process.env.WEB_URL ?? stage1.WebUrl,
   };

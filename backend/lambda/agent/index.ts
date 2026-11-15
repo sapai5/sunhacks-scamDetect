@@ -16,6 +16,7 @@ const FAMILY_HEADLINE: Record<string, string> = {
   verified: 'The caller passed the check and the call was handed back.',
   scam_confirmed: 'The caller failed the check. We told them goodbye; please call her now.',
   caller_left: 'The caller hung up after the takeover.',
+  stopped: 'She said she knows the caller and asked us to step back, so we did. Please check in with her.',
 };
 
 export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {

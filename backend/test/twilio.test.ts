@@ -4,7 +4,7 @@ import { openingLine, sonicSystemPrompt } from '../twilio/sonic.js';
 import { agentStream, agentTurn, directDial, sayAndHangUp, screenedCall } from '../twilio/twiml.js';
 
 describe('Nova Sonic takeover', () => {
-  const persona = { elderName: 'Rose', agentName: 'Mike', agentRelation: 'son', verificationQuestion: 'What did we name the family dog?' };
+  const persona = { elderName: 'Rose', agentName: 'Mike', agentRelation: 'son', verificationQuestion: 'What did we name the family dog?', verificationAnswer: 'Biscuit' };
 
   it('says the opening line, then connects that leg to the two-way agent stream', () => {
     const xml = agentStream({ opening: openingLine(persona), streamUrl: 'wss://bridge.example/agent', token: 'tok', callSid: 'CA1', leg: 'elder' });
@@ -17,6 +17,9 @@ describe('Nova Sonic takeover', () => {
     const prompt = sonicSystemPrompt(persona, []);
     expect(prompt).toContain('three-way call');
     expect(prompt).toContain('Never ask Rose this question');
+    // It knows the answer, so it can say "that's right" at once, and is told never to say it.
+    expect(prompt).toContain('The right answer is "Biscuit"');
+    expect(prompt).toContain('Never say, spell or hint at the answer');
   });
 
   it('gives the voice model the family question and the call so far, and tells it not to end the call', () => {
