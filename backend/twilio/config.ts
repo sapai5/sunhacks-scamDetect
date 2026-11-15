@@ -43,6 +43,11 @@ export interface BridgeConfig {
   /** LOCAL_BACKEND=1: run the IngestFn and Agent Lambda code in the bridge (see local-backend.ts). */
   localBackend: boolean;
   familyTopicArn: string;
+  /**
+   * TRANSCRIBE_AWS_PROFILE: an AWS profile used only for Amazon Transcribe, for when the main
+   * account can't use it (a new account answers "needs a subscription" until AWS activates it).
+   */
+  transcribeProfile?: string;
   /** The web app (Amplify), for the links in texts to the elder. */
   webUrl: string;
 }
@@ -79,6 +84,7 @@ export async function loadConfig(): Promise<BridgeConfig> {
     eldersTable: data.EldersTableName,
     agentUrl: stage1.AgentUrl,
     agentVoice: process.env.AGENT_VOICE === 'sonic' ? 'sonic' : 'say',
+    transcribeProfile: process.env.TRANSCRIBE_AWS_PROFILE || undefined,
     localBackend: process.env.LOCAL_BACKEND === '1',
     familyTopicArn: stage1.FamilyTopicArn,
     persona: {

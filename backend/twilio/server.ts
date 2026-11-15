@@ -22,6 +22,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly';
 import { TranscribeStreamingClient } from '@aws-sdk/client-transcribe-streaming';
+import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import twilio from 'twilio';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -45,7 +46,11 @@ const CALLER_SILENCE_MS = 25_000;
 
 const tw = twilio(cfg.accountSid, cfg.authToken);
 const lambda = new LambdaClient({ region: cfg.region });
-const transcribe = new TranscribeStreamingClient({ region: cfg.region });
+const transcribe = new TranscribeStreamingClient({
+  region: cfg.region,
+  // Only Transcribe can come from another account (TRANSCRIBE_AWS_PROFILE); everything else uses the main one.
+  ...(cfg.transcribeProfile ? { credentials: defaultProvider({ profile: cfg.transcribeProfile }) } : {}),
+});
 const polly = new PollyClient({ region: cfg.region });
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: cfg.region }));
 
