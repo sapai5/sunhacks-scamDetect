@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["bin", "lib", "lambda", "scripts", "test", "../contracts"]
+  "include": ["bin", "lib", "lambda", "scripts", "telephony", "twilio", "test", "../contracts"]
 }
