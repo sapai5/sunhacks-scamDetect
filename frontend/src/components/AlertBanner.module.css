@@ -1,0 +1,3 @@
+.banner { border-radius: var(--radius); padding: var(--space-3) var(--space-4); font-size: var(--text-lg); text-align: center; }
+.danger { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--error-soft); border: 1px solid var(--danger); }
+.info { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); font-size: var(--text-md); }

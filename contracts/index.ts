@@ -47,6 +47,15 @@ export interface AnalyzeRequest {
   verification: Verification;
 }
 
+/** Credentials Lambda -> app. Short-lived creds that can only open a Transcribe stream. */
+export interface TranscribeCredentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken: string;
+  expiration?: string;
+  region?: string;
+}
+
 /** Risk state (Analyze Lambda -> app). */
 export interface RiskState {
   callId: string;

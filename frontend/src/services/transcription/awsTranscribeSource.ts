@@ -1,12 +1,11 @@
 // Browser mic -> Amazon Transcribe streaming. Emits partial and final sentences.
 import { StartStreamTranscriptionCommand, TranscribeStreamingClient } from '@aws-sdk/client-transcribe-streaming';
+import type { CredentialsClient, StopFn, TranscriptHandlers, TranscriptSource } from '../types';
 
 const SAMPLE_RATE = 16000;
 
-export interface TranscriberEvents {
-  onPartial(text: string): void;
-  onFinal(text: string): void;
-  onError(err: unknown): void;
+export function createAwsTranscribeSource(credentials: CredentialsClient, defaultRegion: string): TranscriptSource {
+  return { start: (events) => startTranscriber(credentials, defaultRegion, events) };
 }
 
 // AudioWorklet that posts Float32 mic frames to the main thread.
@@ -16,10 +15,13 @@ class Tap extends AudioWorkletProcessor {
 }
 registerProcessor('tap', Tap);`;
 
-export async function startTranscriber(events: TranscriberEvents): Promise<() => void> {
-  const credsRes = await fetch(import.meta.env.VITE_CREDENTIALS_URL, { method: 'POST' });
-  if (!credsRes.ok) throw new Error(`credentials: HTTP ${credsRes.status}`);
-  const creds = await credsRes.json();
+async function startTranscriber(
+  credentials: CredentialsClient,
+  defaultRegion: string,
+  events: TranscriptHandlers,
+): Promise<StopFn> {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error('This browser cannot use the microphone here (it needs HTTPS).');
+  const creds = await credentials.getTranscribeCredentials();
 
   const stream = await navigator.mediaDevices.getUserMedia({
     // Speakerphone audio: keep echo cancellation off so the caller's voice isn't removed.
@@ -61,7 +63,7 @@ export async function startTranscriber(events: TranscriberEvents): Promise<() =>
   }
 
   const client = new TranscribeStreamingClient({
-    region: creds.region ?? import.meta.env.VITE_REGION,
+    region: creds.region ?? defaultRegion,
     credentials: { accessKeyId: creds.accessKeyId, secretAccessKey: creds.secretAccessKey, sessionToken: creds.sessionToken },
   });
 

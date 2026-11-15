@@ -3,13 +3,34 @@
 Speakerphone call → browser mic → Amazon Transcribe → Analyze Lambda → Bedrock (Claude Haiku) → green / yellow / red light. Red texts the family via SNS.
 
 ```
-frontend/   PWA (Vite, vanilla TS). Mic → Transcribe streaming, light, meter, chips, verification card.
+frontend/   PWA (Vite + React). See "Frontend layout" below.
 backend/    CDK stack ScamShieldStage1
   lambda/credentials   STS AssumeRole → 15-min creds allowed only to open a Transcribe stream
   lambda/analyze       validate → last 60 s → Bedrock → level rules (rules.ts) → SNS on red
   scripts/             4 test scripts, a runner against the deployed Lambda, deploy helpers
 contracts/  Shared TypeScript types (Utterance, AnalyzeRequest, RiskState)
 ```
+
+## Frontend layout
+
+```
+src/
+  app/            App (composition root: config → services → call session → screens), navigation
+  config/env.ts   Reads VITE_* vars. No backend URLs → mock mode automatically
+  services/       Interfaces in types.ts; AWS + mock implementations picked in createServices.ts
+    analyze/        Analyze Lambda client | offline mock (keyword heuristic + the real rules.ts)
+    credentials/    Credentials Lambda client | mock
+    transcription/  Mic → Transcribe (lazy-loaded) | demo script player
+    diagnostics.ts  Health checks for the Setup screen
+  features/call/  CallController: framework-free call state + serialized Analyze calls (unit tested)
+  components/     RiskLight, RiskMeter, TacticChips, VerificationCard, Transcript, … (CSS modules)
+  screens/        Home → Call → Summary, plus Setup
+  styles/         Design tokens + globals
+```
+
+Screens and the controller only talk to the `Services` interfaces. New AWS pieces (Cognito, a call-history API) go in as another client on `Services`, wired in `createServices.ts`.
+
+`npm run dev` works before anything is deployed: it runs in **practice mode** (mock backend, demo calls only). Once `frontend/.env.local` exists it switches to AWS. Force either with `VITE_SERVICE_MODE=aws|mock`.
 
 ## AWS resources
 

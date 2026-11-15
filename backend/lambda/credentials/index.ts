@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { AssumeRoleCommand, STSClient } from '@aws-sdk/client-sts';
 import type { APIGatewayProxyResultV2 } from 'aws-lambda';
+import type { TranscribeCredentials } from '../../../contracts/index.js';
 
 const sts = new STSClient({});
 const ROLE_ARN = process.env.TRANSCRIBE_ROLE_ARN!;
@@ -14,14 +15,15 @@ export const handler = async (): Promise<APIGatewayProxyResultV2> => {
         DurationSeconds: 900, // STS minimum. Only needed to open the socket.
       }),
     );
-    if (!c) throw new Error('No credentials returned');
-    return json(200, {
+    if (!c?.AccessKeyId || !c.SecretAccessKey || !c.SessionToken) throw new Error('No credentials returned');
+    const body: TranscribeCredentials = {
       accessKeyId: c.AccessKeyId,
       secretAccessKey: c.SecretAccessKey,
       sessionToken: c.SessionToken,
       expiration: c.Expiration?.toISOString(),
       region: process.env.AWS_REGION,
-    });
+    };
+    return json(200, body);
   } catch (err) {
     console.error('assume role failed', err);
     return json(500, { error: 'could not issue credentials' });

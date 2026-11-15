@@ -6,9 +6,10 @@
     "frontend"
   ],
   "scripts": {
-    "test": "npm test -w backend",
+    "test": "npm test --workspaces",
     "synth": "npm run synth -w backend",
     "dev": "npm run dev -w frontend",
-    "scripts:run": "npm run scripts:run -w backend"
+    "scripts:run": "npm run scripts:run -w backend",
+    "build": "npm run build -w frontend"
   }
 }

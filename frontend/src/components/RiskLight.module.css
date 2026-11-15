@@ -1,0 +1,15 @@
+.light {
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
+  font-weight: 800;
+  transition: background 0.3s, box-shadow 0.3s, color 0.3s;
+}
+.lg { width: 200px; height: 200px; font-size: var(--text-2xl); }
+.sm { width: 96px; height: 96px; font-size: var(--text-lg); }
+.green { background: var(--safe); color: var(--on-safe); box-shadow: 0 0 40px color-mix(in srgb, var(--safe) 55%, transparent); }
+.yellow { background: var(--careful); color: var(--on-careful); box-shadow: 0 0 40px color-mix(in srgb, var(--careful) 55%, transparent); }
+.red { background: var(--danger); color: var(--on-danger); box-shadow: 0 0 60px color-mix(in srgb, var(--danger) 80%, transparent); animation: pulse 1.2s ease-in-out infinite; }
+.idle { background: var(--surface-2); color: var(--text-muted); box-shadow: none; }
+@keyframes pulse { 50% { box-shadow: 0 0 90px var(--danger); } }

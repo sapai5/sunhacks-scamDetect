@@ -1,0 +1,5 @@
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: var(--space-2); vertical-align: middle; }
+.green { background: var(--safe); }
+.yellow { background: var(--careful); }
+.red { background: var(--danger); }
+.off { background: var(--text-subtle); }

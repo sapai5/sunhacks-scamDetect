@@ -1,0 +1,4 @@
+.reason { font-size: var(--text-lg); text-align: center; min-height: 1.4em; }
+.advice { font-size: var(--text-lg); text-align: center; font-weight: 600; }
+.status { color: var(--text-subtle); font-size: var(--text-sm); text-align: center; min-height: 1.4em; }
+.source { color: var(--text-subtle); font-size: var(--text-sm); }
