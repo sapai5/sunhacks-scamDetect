@@ -121,7 +121,8 @@ async function onVoice(params: Record<string, string>, res: ServerResponse) {
   // Ring the elder into the same conference.
   if (DRY_RUN) return;
   try {
-    await tw.calls.create({ to: cfg.elderPhone, from: cfg.twilioNumber, twiml: elderLeg(call.conference), timeout: 30 });
+    // Trial accounts reject inline `twiml` and `timeout`, so Twilio fetches the elder's TwiML from us.
+    await tw.calls.create({ to: cfg.elderPhone, from: cfg.dialFrom, url: `${cfg.publicUrl}/elder/${callSid}`, method: 'POST' });
   } catch (err) {
     console.error('dialing the elder failed', err);
   }
@@ -142,6 +143,11 @@ createServer(async (req, res) => {
     if (!DRY_RUN && !fromTwilio(req, params)) return send(res, 403, 'bad signature', 'text/plain');
     if (path === '/voice') return await onVoice(params, res);
     if (path.startsWith('/announce/')) return onAnnounce(path.slice('/announce/'.length), res);
+    if (path.startsWith('/elder/')) {
+      // The elder's leg joins the conference of a call we're screening right now.
+      const c = calls.get(path.slice('/elder/'.length));
+      return send(res, c ? 200 : 404, c ? elderLeg(c.conference) : '<Response><Hangup/></Response>');
+    }
     if (path === '/status') {
       if (params.CallStatus === 'completed') endCall(params.CallSid, 'hung up');
       return send(res, 204, '');

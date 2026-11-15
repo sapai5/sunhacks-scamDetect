@@ -17,6 +17,8 @@ export interface BridgeConfig {
   authToken: string;
   /** The Twilio number scammers call (E.164). */
   twilioNumber: string;
+  /** Caller ID when we ring the elder. Trial accounts must use their assigned trial number here. */
+  dialFrom: string;
   /** Public https URL of this server (the tunnel), no trailing slash. */
   publicUrl: string;
   port: number;
@@ -48,6 +50,7 @@ export async function loadConfig(): Promise<BridgeConfig> {
     accountSid: need('TWILIO_ACCOUNT_SID'),
     authToken: need('TWILIO_AUTH_TOKEN'),
     twilioNumber: need('TWILIO_NUMBER'),
+    dialFrom: process.env.TWILIO_DIAL_FROM || need('TWILIO_NUMBER'),
     publicUrl: need('PUBLIC_URL').replace(/\/+$/, ''),
     port: Number(process.env.PORT ?? 8080),
     region,
