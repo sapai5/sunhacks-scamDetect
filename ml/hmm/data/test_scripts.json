@@ -1,0 +1,318 @@
+[
+  {
+    "name": "grandparent-scam",
+    "expectedPeak": "red",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hi Grandma, it's me."
+      },
+      {
+        "speaker": "elder",
+        "text": "Tommy? Is that you?"
+      },
+      {
+        "speaker": "caller",
+        "text": "Yeah, it's Tommy. I have a cold, that's why my voice sounds weird."
+      },
+      {
+        "speaker": "caller",
+        "text": "Can you take me off speaker? I don't want anyone else to hear this."
+      },
+      {
+        "speaker": "caller",
+        "text": "Grandma, I'm in trouble. I got in a car accident and they took me to jail."
+      },
+      {
+        "speaker": "elder",
+        "text": "Oh my goodness, are you okay? What do you need, honey?"
+      },
+      {
+        "speaker": "caller",
+        "text": "I need two thousand dollars for bail right now or they will keep me overnight."
+      },
+      {
+        "speaker": "caller",
+        "text": "Please don't tell Mom and Dad, they'll be so mad at me."
+      },
+      {
+        "speaker": "elder",
+        "text": "Okay, okay, I won't tell them. How do I send it?"
+      },
+      {
+        "speaker": "caller",
+        "text": "My lawyer says you can pay with gift cards from Target. Can you go get them today?"
+      },
+      {
+        "speaker": "elder",
+        "text": "All right, I'll go to Target right now and get the cards."
+      }
+    ]
+  },
+  {
+    "name": "real-grandson-asks-money",
+    "expectedPeak": "red",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hi Grandma, it's Tommy."
+      },
+      {
+        "speaker": "elder",
+        "text": "Tommy! How are you, sweetheart?"
+      },
+      {
+        "speaker": "caller",
+        "text": "Not great. My car broke down and I need eight hundred dollars for the repair today, the shop closes at five."
+      },
+      {
+        "speaker": "caller",
+        "text": "Please don't tell Mom, she already thinks I'm bad with money."
+      },
+      {
+        "speaker": "elder",
+        "text": "Oh honey, of course. I'll send it to you on Zelle right now."
+      }
+    ]
+  },
+  {
+    "name": "bank-reminder-legit",
+    "expectedPeak": "green",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hello, this is Maria calling from Desert Financial Credit Union."
+      },
+      {
+        "speaker": "caller",
+        "text": "This is a courtesy reminder that your auto loan payment is due on the fifteenth."
+      },
+      {
+        "speaker": "elder",
+        "text": "Oh, thank you, I think I already paid it."
+      },
+      {
+        "speaker": "caller",
+        "text": "You can check online, in a branch, or by calling the number on the back of your card."
+      },
+      {
+        "speaker": "caller",
+        "text": "If you've already paid, please disregard this message. Have a great day."
+      }
+    ]
+  },
+  {
+    "name": "grandkid-hi-legit",
+    "expectedPeak": "green",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hi Grandma, it's Jake!"
+      },
+      {
+        "speaker": "elder",
+        "text": "Jake! So good to hear from you."
+      },
+      {
+        "speaker": "caller",
+        "text": "I just wanted to call and say I got the job at the hospital."
+      },
+      {
+        "speaker": "elder",
+        "text": "That's wonderful, I'm so proud of you."
+      },
+      {
+        "speaker": "caller",
+        "text": "Are we still doing dinner on Sunday? I can pick you up at five."
+      },
+      {
+        "speaker": "caller",
+        "text": "Okay, love you, talk soon."
+      }
+    ]
+  },
+  {
+    "name": "tech-support-scam",
+    "expectedPeak": "red",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hello, this is David from Microsoft Windows technical department."
+      },
+      {
+        "speaker": "caller",
+        "text": "We are seeing a virus on your computer that is sending your bank details to hackers."
+      },
+      {
+        "speaker": "elder",
+        "text": "Oh no, what should I do?"
+      },
+      {
+        "speaker": "caller",
+        "text": "You must act right now or your bank account will be frozen today."
+      },
+      {
+        "speaker": "caller",
+        "text": "Please go to your computer and install AnyDesk so I can fix it for you."
+      },
+      {
+        "speaker": "elder",
+        "text": "Okay, I'm at the computer now. I'm typing in AnyDesk."
+      }
+    ]
+  },
+  {
+    "name": "bank-fraud-check-legit",
+    "expectedPeak": "yellow",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hi, this is Karen from the Chase fraud prevention team, calling for Rose."
+      },
+      {
+        "speaker": "caller",
+        "text": "We noticed a charge of four hundred eighty dollars at a Best Buy in Denver this morning. Did you make that purchase?"
+      },
+      {
+        "speaker": "elder",
+        "text": "No, I haven't been to Denver. Oh dear."
+      },
+      {
+        "speaker": "caller",
+        "text": "Okay, thank you. I've blocked that card so nothing else goes through, and a new card will arrive in the mail in five to seven days."
+      },
+      {
+        "speaker": "caller",
+        "text": "We will never ask for your PIN, your full card number or a code. If you'd like to double check this call, hang up and call the number on the back of your card."
+      },
+      {
+        "speaker": "elder",
+        "text": "Thank you, I'll call that number just to be safe."
+      },
+      {
+        "speaker": "caller",
+        "text": "That's a great idea. Have a good afternoon."
+      }
+    ]
+  },
+  {
+    "name": "family-emergency-legit",
+    "expectedPeak": "yellow",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Grandma, it's Emily. Grandpa fell in the garden and they took him to Banner hospital."
+      },
+      {
+        "speaker": "elder",
+        "text": "Oh my goodness, is he okay?"
+      },
+      {
+        "speaker": "caller",
+        "text": "The doctors think it's just his wrist, but they want to keep him overnight."
+      },
+      {
+        "speaker": "caller",
+        "text": "Dad is driving over to pick you up in twenty minutes so you can see him."
+      },
+      {
+        "speaker": "elder",
+        "text": "Okay, I'll get my coat and my purse and wait by the door."
+      },
+      {
+        "speaker": "caller",
+        "text": "Bring his reading glasses and his phone charger. Love you, see you soon."
+      }
+    ]
+  },
+  {
+    "name": "internet-provider-legit",
+    "expectedPeak": "yellow",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hi, this is Marcus with Cox Communications, returning your call from this morning about your internet going out."
+      },
+      {
+        "speaker": "elder",
+        "text": "Oh yes, thank you for calling back."
+      },
+      {
+        "speaker": "caller",
+        "text": "I see there was an outage in your neighborhood. It was fixed about an hour ago."
+      },
+      {
+        "speaker": "caller",
+        "text": "Could you unplug the white box by your TV, wait thirty seconds, and plug it back in?"
+      },
+      {
+        "speaker": "elder",
+        "text": "Okay, I did it. The lights are blinking now."
+      },
+      {
+        "speaker": "caller",
+        "text": "Perfect, you should be back online. There's no charge for this. Anything else I can help with?"
+      }
+    ]
+  },
+  {
+    "name": "doctor-office-legit",
+    "expectedPeak": "yellow",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Good morning, this is Dr. Patel's office calling to confirm Rose's appointment."
+      },
+      {
+        "speaker": "caller",
+        "text": "For privacy, can you please confirm your date of birth?"
+      },
+      {
+        "speaker": "elder",
+        "text": "It's March third, nineteen forty-six."
+      },
+      {
+        "speaker": "caller",
+        "text": "Thank you. You're scheduled for Thursday at ten thirty with Dr. Patel."
+      },
+      {
+        "speaker": "caller",
+        "text": "Please bring your insurance card and a list of your medications. If you need to reschedule, just call the office."
+      },
+      {
+        "speaker": "elder",
+        "text": "Thursday at ten thirty, got it. Thank you."
+      }
+    ]
+  },
+  {
+    "name": "church-donation-legit",
+    "expectedPeak": "yellow",
+    "lines": [
+      {
+        "speaker": "caller",
+        "text": "Hi Rose, it's Linda from Saint Mary's. How are you doing?"
+      },
+      {
+        "speaker": "elder",
+        "text": "Linda! I'm doing well, thank you."
+      },
+      {
+        "speaker": "caller",
+        "text": "We're collecting for the food bank drive this month. If you'd like to give, you can drop a check in the box at Sunday service."
+      },
+      {
+        "speaker": "caller",
+        "text": "No pressure at all, every bit helps. We're also looking for volunteers to sort cans on Saturday."
+      },
+      {
+        "speaker": "elder",
+        "text": "I'll bring a check on Sunday, and maybe I can help on Saturday too."
+      },
+      {
+        "speaker": "caller",
+        "text": "Wonderful. See you Sunday!"
+      }
+    ]
+  }
+]

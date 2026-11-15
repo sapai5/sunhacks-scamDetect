@@ -1,0 +1,8 @@
+numpy
+scipy
+scikit-learn
+hmmlearn==0.3.3
+pandas
+pyarrow
+huggingface_hub
+joblib
